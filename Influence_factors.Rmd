@@ -1,0 +1,1856 @@
+---
+title: Linear model and cluster analysis of Influence factors and Public Transport
+  subscriptions
+author: "Gabriel Peier"
+date: '2022-11-25'
+output:
+  pdf_document:
+    number_sections: TRUE
+    keep_tex: TRUE    
+  html_document: default
+---
+\graphicspath{ {G:/My Drive/MasterThesis/Scripts/Outputs}}
+
+```{r 1_setup, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, cache=TRUE)
+```
+
+# INTRODUCTION
+
+In this script, the methodical part of the Linear Model and the Cluster Analysis is described and executed.
+
+## Packages
+For this analysis, several packages for the coding were needed. To make the use and reproducability easier, I list them here at the beginning of the paper. I did use the following packages:
+
+```{r 0_libraries, results="hide", warning=FALSE} 
+library(tidyverse)             # ggplot2, dplyr, tidyr, readr, tibble
+library(stringr)
+library(dplyr)
+library(caret)                 # data splitting and pre-processing
+library(PerformanceAnalytics)  # special graphical comparisons of variables
+library(ggpubr)                # for using ggbarplot
+library(regclass)              # For VIF function (Variance Inflation Factor)
+library(MASS)
+library(reshape2)              # for function "melt" => combine with ggplot
+library(cluster)               # for silhouette plot function (cluster analysis)
+library(dbscan)                # for DB Scan Clustering
+library(mclust)                # for Gaussian mixture model
+library(dbscan)                # DBscan model (clustering)
+library(plyr)                  # To combine dataframes
+library(GGally)                # for ggpairs plot
+```
+
+
+
+
+## Loading data
+```{r 1.01_dataloading}
+getwd()
+d.share <- read.csv(("../Data/Cleaned/inf_fac_share.csv"))
+d.count <- read.csv(("../Data/Cleaned/inf_fac_count.csv")) 
+```
+
+
+## NA handling
+In the dataset exists NaN values, which can not be handled within a lm function (in contrast to NA value). So the values have to be replaced:
+```{r 1.02_showNA}
+# Showing NA values per Column
+apply(is.na(d.share), 2, sum)
+```
+Most missing values are visible in the inbound and outbound share. This comes due to the old data from 2000. Many municipalities have changed since then. To not loose all these information, the mean value will be replacing the share values in these 2 cases:
+
+```{r 1.03_replaceNA}
+# replacing mean value in inbound and outbound share data:
+d.share$inbound_share[is.na(d.share$inbound_share)] <- mean(d.share$inbound_share, na.rm=TRUE)
+d.share$outbound_share[is.na(d.share$outbound_share)] <- mean(d.share$outbound_share, na.rm=TRUE)
+```
+
+Second, most missing data are in the stops and station tables (67). Let's have a look at the number of rows, where still data is missing:
+
+```{r 1.04_showmissing}
+sum(!complete.cases(d.share))
+```
+Beside the 67 missing from the stops table, only 23 observations more do lack data. So there are many rows with multiple values missing. This can be shown graphically:
+
+```{r 1.05_Multiple_missing}
+plot(rowSums(is.na(d.share)), xlab = "municipality", ylab="nr. of NA values in municipality")
+```
+11 observations have 36 (or more) missing values. This reflects all columns, which show at least 11 missing values. For these specific municipalities, it doesn't make any sense to compute the mean value. Also for the others, there are always multiple columns with missing data at the same time (at least 6), so these rows will be deleted. Still enough data is there.
+```{r 1.06_remove_NA}
+# replace NaN values or "Inf" values with NA
+d.share[is.na(d.share) | d.share == "Inf"] <- NA
+d.count[is.na(d.count) | d.count == "Inf"] <- NA
+
+## Removing all observations with NA!
+
+d.share <- na.omit(d.share)
+d.count <- na.omit(d.count)
+```
+
+\newpage
+
+## Graphical Analysis
+In this chapter, several analysis steps based on graphics will be performed to get a meaningful insight into the data. The used methods only cover a little part of the huge possibilities when it comes to visualizations. I mainly focused on the "ggplot"-package as it comes with a wide range of options.
+
+### Share Data: Density plots of different influence factors
+
+```{r 1.07_density_plots1, fig.height=3, warning=FALSE, echo=FALSE}
+d.share[,2:14] %>%
+  keep(is.numeric) %>%
+  gather() %>%
+  ggplot(aes(value))  +                   # Plot the values
+    facet_wrap(~ key, scales = "free") +  # In separate panels
+    geom_density() +                      # show density lines
+    theme(axis.text=element_text(size=6, face="bold")) # change axis size
+
+d.share[,15:26] %>%
+  keep(is.numeric) %>%
+  gather() %>%
+  ggplot(aes(value))  +                   # Plot the values
+    facet_wrap(~ key, scales = "free") +  # In separate panels
+    geom_density() +                      # show density lines
+    theme(axis.text=element_text(size=6, face="bold")) # change axis size
+
+d.share[,27:38] %>%
+  keep(is.numeric) %>%
+  gather() %>%
+  ggplot(aes(value))  +                   # Plot the values
+    facet_wrap(~ key, scales = "free") +  # In separate panels
+    geom_density() +                      # show density lines
+    theme(axis.text=element_text(size=6, face="bold")) # change axis size
+
+d.share[,39:50] %>%
+  keep(is.numeric) %>%
+  gather() %>%
+  ggplot(aes(value))  +                   # Plot the values
+    facet_wrap(~ key, scales = "free") +  # In separate panels
+    geom_density() +                      # show density lines
+    theme(axis.text=element_text(size=6, face="bold")) # change axis size
+```
+
+### Count Data: Density plots of different influence factors
+
+
+```{r 1.08_density_plots2, fig.height=3, warning=FALSE, echo=FALSE}
+d.count[,2:14] %>%
+  keep(is.numeric) %>%
+  gather() %>%
+  ggplot(aes(value))  +                   # Plot the values
+    facet_wrap(~ key, scales = "free") +  # In separate panels
+    geom_density() +                      # show density lines
+    theme(axis.text=element_text(size=6, face="bold")) # change axis size
+
+d.count[,15:26] %>%
+  keep(is.numeric) %>%
+  gather() %>%
+  ggplot(aes(value))  +                   # Plot the values
+    facet_wrap(~ key, scales = "free") +  # In separate panels
+    geom_density() +                      # show density lines
+    theme(axis.text=element_text(size=6, face="bold")) # change axis size
+
+d.count[,27:38] %>%
+  keep(is.numeric) %>%
+  gather() %>%
+  ggplot(aes(value))  +                   # Plot the values
+    facet_wrap(~ key, scales = "free") +  # In separate panels
+    geom_density() +                      # show density lines
+    theme(axis.text=element_text(size=6, face="bold")) # change axis size
+
+d.count[,39:48] %>%
+  keep(is.numeric) %>%
+  gather() %>%
+  ggplot(aes(value))  +                   # Plot the values
+    facet_wrap(~ key, scales = "free") +  # In separate panels
+    geom_density() +                      # show density lines
+    theme(axis.text=element_text(size=6, face="bold")) # change axis size
+```
+
+All data except the PT_fact_big and PT_fact_medium are right-skewed and have to be logarithmized to normalize!
+
+## Normalizing data
+
+The normalization is important due to some outstanding variables. Due to the different data distribution in the share and count datasets, different approaches will be used for the two sets. 
+
+### Normalizing Share Values
+In the case of the share dataset, the normalization mainly affects those variables that have no shares, as these already lie between 0 and 1 anyway. But to standardize all continuous variables at the same scale, I will include all parameters except the target variable into the normalization.
+The 'scale'-function should do the necessary normalization in these cases.
+```{r 1.09_normalizing_share}
+# NORMALIZING SHARE VALUES
+d.norm.share <- d.share[,4:50]
+# print(colnames(d.norm.share))
+
+# define columns to normalize:
+columns <- c("single_share", "married_share",
+             "widowed_share", "divorced_share", "age0_20", "age20_40", "age40_60", 
+             "age60.", "birth_munic", "birth_cant", "birth_CH", "birth_notCH", 
+             "male", "female", "resid_0_1y", "resid_1_5y", "resid_6_10y", "resid_10.y",
+             "hh_1", "hh_2", "hh_3_5", "hh_6.", "PT_dist_medium", "PT_time_medium", 
+             "PT_dist_big", "PT_time_big", "str_dist_medium", "str_time_medium", 
+             "str_dist_big", "str_time_big", "PT_fact_big", "PT_fact_medium",
+             "bus_stops_per_pop", "train_stops_per_pop", "other_stops_per_pop",
+             "bus_stat_per_1000", "train_stat_per_1000", "other_stat_per_1000",
+             "comb_car_1000", "el_car_1000", "inbound_share", "outbound_share")
+
+# normalize data!
+d.norm.share[columns] <- scale(d.norm.share[columns]) 
+  # scale function: mean = 0, standard deviation = 1
+
+```
+The used scale function normalizes data through centering (setting mean of each variable to 0 by subtracting the mean value of all observations) and scaling (setting standard deviation to 1 by dividing all observations to the standard deviation of the column). The values achieved in this way all have the same weight in relation to a model. Thus, the resulting parameters can be compared with each other later on.
+
+
+### Normalizing Count data
+
+As observed in chapter 1.4.2, most count data have a right-skewed distribution and should therefore be log-transformed. The only variables this hardly affects are "PT_fact_big" and "PT_fact_medium", which have an approximate normal distribution. For this reason, these variables are not taken into account in the normalization.
+
+```{r 1.10_normalizing_count}
+# NORMALIZING COUNT DATA
+
+# log-transform all columns except PT_fact_big, PT_fact_medium and language
+d.norm.count <- log(d.count[, !names(d.count) 
+                            %in% c("language", "PT_fact_big", "PT_fact_medium",
+                                  "BFS_Nr", "municipality", "canton")]+1) 
+                                    # '+1' due to log(0) = -Inf!
+
+# add the 3 deleted columns again!
+d.norm.count["language"] <- d.count["language"]
+d.norm.count["PT_fact_big"] <- d.count["PT_fact_big"]
+d.norm.count["PT_fact_medium"] <- d.count["PT_fact_medium"]
+```
+
+\newpage
+
+## GA, HTA & FNT shares compared to languages:
+
+A first insight can be gained by comparing the different target share values (HTA, GA, FNT) with the language regions as the only categorical variable present:
+```{r 1.11_language_shares, warning=FALSE, fig.height=3}
+plot_HTA <- ggbarplot(d.share, x="language", y="HTA_share", fill="language",  
+                      add = "mean_se", xlab = "language", legend = "right",
+                      title = "HTA", ggtheme = theme_cleveland()) + # better looking
+  theme(axis.text=element_text(size=6.5, face="bold"))
+
+plot_GA <- ggbarplot(d.share, x="language", y="GA_share", fill="language", add = "mean_se",
+                      xlab = "language", legend = "right", 
+                     title = "GA", ggtheme = theme_cleveland()) +
+  theme(axis.text=element_text(size=6.5, face="bold"))
+
+plot_FNT <- ggbarplot(d.share, x="language", y="FNT_share", fill="language", 
+                      add = "mean_se", xlab = "language", legend = "right",
+                      title = "FNT", ggtheme = theme_cleveland()) +
+  theme(axis.text=element_text(size=6.5, face="bold"))
+
+share.comparison <- ggarrange(plot_GA, plot_HTA, plot_FNT, ncol=3) # 3 plots beside each other
+
+annotate_figure(share.comparison, 
+    top = text_grob("Comparison of mean share of GA, HTA and FNT sold in % of population", 
+                                face = "bold")) # set over-all title ("top")
+```
+Interesting insights can be gained here: For the GA tickets, the share is highest in the German municipalities and lowest in the Italian regions. The rate in the German-speaking region is thereby 2.5 times as high as in Ticino. The picture is similar for the Half-Fare Card (HTA), with shares generally in much higher percentage ranges. The relatively high proportion in Rhaeto-Romanic speaking municipalities is remarkable, which is about the same as in German-speaking Switzerland. 
+
+A completely different picture emerges for the fare network tickets (FNT). Now, the non-German-speaking areas, led by Ticino with just under 8%, have the highest share of fare network tickets. The rate in French-speaking Switzerland is also not much lower at around 6%, while German-speaking Switzerland only achieves a share of 3%.
+
+\newpage
+
+
+
+# MODELLING SHARES
+I will achieve the first objective of modelling the share of season tickets through two different approaches: Linear model (LM) and generalized linear model (GLM) with family "binomial".
+
+## Parameter selection
+
+Before starting with the models, the amount of possible influence factors must be reduced. Still many parameters are present, which strongly rely on each other, for example the different PT / Street distance + time tables:
+
+### street and PT distance + time tables:
+
+```{r 2.01_corr_charts, fig.height=3.5}
+chart.Correlation(d.norm.count[,c(27:34, 44:45)], # +1 due to 0-values (log(0) = -Inf)
+                  histogram=TRUE) # adding histograms to the plot
+```
+Many correlation values are strongly significant, the collinearity is huge in these cases! There has to be done something here. The distance and time data are always strongly correlating for big and medium cities, so I will focus only on time data. Within the same city category, PT and str data are additionnally also correlating highly, so only the PT data is used.
+The PT factor will be used as well, the correlation values are not that high, even if one of the inputs for the calculation are the PT_time_big and PT_time_medium tables.
+Decision: For further uses, the following variables will be used: 
+
+* PT_fact_big
+* PT_fact_medium
+* PT_time_big
+* PT_time_medium
+
+```{r 2.02_column_removing1}
+# remove undesired columns #1 from COUNT DATA
+d.norm.count <- d.norm.count[, !names(d.norm.count) # remove the following columns:
+                             %in% c("PT_dist_medium", "PT_dist_big", "str_dist_medium", 
+                                    "str_time_medium", "str_dist_big", "str_time_big")]
+
+# remove undesired columns #1 from SHARE DATA
+d.norm.share <- d.norm.share[, !names(d.norm.share) # remove the following columns:
+                             %in% c("PT_dist_medium", "PT_dist_big", "str_dist_medium", 
+                                    "str_time_medium", "str_dist_big", "str_time_big")]
+```
+
+
+### Categorical data
+Furthermore, many original categorical data (personal data) has been used to show demographic structure (age segments, household size etc.).
+With the given population data (pop_count_BFS) and the categories male and female for example, the number of male explains the number of females in the municipality (population - male). For each of this categories, one can be removed. This affects the following variables, which are removed:
+
+* divorced_count_BFS
+* age60.cnt
+* birth_notCH_cnt
+* female_cnt
+* resid_10.y_cnt
+* hh6._cnt
+
+The same procedure can also be used for the share data set, since, for example, the proportion of men in a municipality simultaneously explains the proportion of women.
+
+
+```{r 2.03_column_removing2}
+# remove undesired columns #2 SHARE DATA
+d.norm.count <- d.norm.count[, !names(d.norm.count) # remove the following columns:
+                             %in% c("divorced_count_BFS", "age60.cnt", "birth_notCH_cnt", 
+                                    "female_cnt", "resid_10.y_cnt", "hh_6._cnt")]
+
+# remove undesired columns #2 COUNT DATA
+d.norm.share <- d.norm.share[, !names(d.norm.share) # remove the following columns: 
+                             %in% c("divorced_share", "age60.", "birth_notCH", 
+                                    "female", "resid_10.y", "hh_6.")]
+
+```
+
+
+## Train / Test splitting Share/count datasets (original + normalized each)
+
+With the selection of data complete, the data set can now be split into a training and test set. This is important in modelling to detect potential overfitting if the accuracy of the model is much higher for the training set than for the test data. Splitting is done for all data sets that will be used later in the modelling, i.e. the normalised count and share data:
+
+### Normalized share dataset
+```{r 2.04_testtrainsplit_share}
+set.seed(234) # reproducible
+indexes <- createDataPartition(d.norm.share$pop_count_BFS, p = .8, list = FALSE) 
+d.norm.share.train <- d.norm.share[indexes, ]
+d.norm.share.test <- d.norm.share[-indexes, ]
+```
+
+### Normalized count dataset
+```{r 2.05_testtrainsplit_count}
+set.seed(234) # reproducible
+indexes <- createDataPartition(d.norm.count$pop_count_BFS, p = .8, list = FALSE) 
+d.norm.count.train <- d.norm.count[indexes, ]
+d.norm.count.test <- d.norm.count[-indexes, ]
+```
+
+
+
+
+
+## Modelling General Season tickets (GA)
+This analysis starts with the first target variable, the GA. The share as well as the count will be calculated in the following chapter using two methods, the Generalized Linear Model with family Binomial and the Linear Model.
+
+### Generalized Linear model (GLM) with family "Binomial" (GA)
+With a linear model, no probability distributions can be predicted, as values above 1 and below 0 are possible, resulting in meaningless values concerning the share. Therefore, a logistic approach comes into play, which strictly forecasts values between 0 and 1. Although I do not have values for individuals with regard to the share and thus do not model a binary target variable, a *multinomial logit model approach is described for aggregated data using group variable, which is in my case the municipality (Morais et al., 2016).*
+*Quasibinomial glm fulfills the criteria here:*
+
+#### Binomial vs. quasibinomial\newline
+
+There are several options when choosing the option "family" in the GLM. By default, "binomial" is used for a binomial model. In cases where the dispersion is too large or too small (over- and underdispersion), a "quasibinomial" model can be used, which has an additional dispersion parameter. This helps to ensure that significances can be detected. *According to the literature, the model is used when ...*
+For these reasons, a quasibinomial model is also used here. The disadvantage here is that no stepwise procedure for paremeter elimination can be applied, as this is not permitted by the definition of the model.
+
+#### GLM model runs (GA)\newline
+
+The first run is done by using all possible influence factors except the two remaining target variables:
+```{r 2.06_GLM_GA_1, warning=FALSE, results='hide'}
+#####  Modelling GLM with share data:
+
+################### Model set up 01 ######################
+glm.share.01 <- glm(GA_share ~ (. - HTA_share - FNT_share)^2, # all interactions included!
+                family = quasibinomial, data=d.norm.share)
+
+summary(glm.share.01) 
+### Summary output not printed, due to all possible interactions shown
+```
+
+Starting from the output of the first experiment, all possible interactions outside the script were examined and all those that were classified as relevant were included in the second experiment, while all other interactions were no longer present:
+
+
+```{r 2.07_GLM_GA_2, warning=FALSE, results='hide'}
+######## Including interaction (see excel sheet)
+glm.share.02 <- glm(GA_share ~ . - HTA_share - FNT_share
+                    + bus_stops_per_pop:bus_stat_per_1000
+                    + train_stops_per_pop:train_stat_per_1000
+                    + other_stops_per_pop:other_stops_per_pop
+                    + PT_fact_big:PT_fact_medium
+                    + PT_time_big:PT_fact_big
+                    + PT_time_medium:PT_time_big
+                    + PT_fact_medium:PT_time_medium, 
+                family = binomial, data=d.norm.share) 
+    ## binomial model as a try for further stepwise selection!
+summary(glm.share.02)
+```
+
+\includegraphics{GLM_share_02_summary.png}
+
+Now a model with the family "binomial" was used. It is relatively quickly apparent that no parameter is considered significant. However, in principle, a stepwise procedure for parameter selection is possible in this way, which is applied in the next step:
+
+```{r 2.08_GLM_GA_3, warning=FALSE}
+############### Stepwise parameter selection forward and backwards!###########
+glm.share.03 <- stepAIC(glm.share.02, direction="both", trace=FALSE)
+
+summary(glm.share.03)
+
+```
+
+Doing this, the process stops very late, having only age0_20, PT_fact_big and PT_time_big left.
+The problem here comes from the above discussed problem of the overdispersion when using the binomial model.
+
+The quasibinomial model on one side shows significances of parameters, but does not allow a stepwise variable selection with stepAIC function.
+The RMSE and R square values are on the other hand exactly the same, showing identic prediction behaviour. Therefore, the quasibinomial model can be used to selected parameters for a further try for the GLM. One possibility is still an option: The parameter selection can be done by taking the significant parameters from ta linear model approach, having the assumption that  the same parameters are relevant for a linear model as for a GLM with the family binomial or quasibinomial.
+Therefore, a linear model is now built first before the analysis of the GLM can go further.
+
+### Linear Model (LM) (GA)
+
+
+Now, a linear model is built, which models the absolute numbers of GA's per municipality. Due to the restriction of a linear model, it is not possible to model shares in a population with a linear model, as for a linear model, also negative values and values above 1 can occur which contradicts the possible range of the target variable. Therefore, the count dataset is used here. As is the case with the share dataset, all values except the target variable are normalized in the count data.
+
+The main goal of the linear model is to gain insights into the automatic parameter selection when applying a stepwise AIC-selection approach. This can be used afterwards for the GLM again.
+
+
+```{r 2.09_LM_GA_1}
+# First model with all predictors including defined interaction terms:
+lm.count.01 <- lm(GA_BFS ~ . -HTA_BFS - fn_tck_BFS 
+                    + bus_count:bus_stat
+                    + train_count:train_stat
+                    + other_count:other_stat
+                    + PT_fact_big:PT_fact_medium
+                    + PT_time_big:PT_fact_big
+                    + PT_time_medium:PT_time_big
+                    + PT_fact_medium:PT_time_medium,
+                  data = d.norm.count.train)
+
+summary(lm.count.01) ## looks generally good
+```
+The output looks good in general, but to reduce the number of parameters, a stepwise selection model is applied:
+
+```{r 2.10_LM_GA_2}
+lm.count.02 <- MASS::stepAIC(lm.count.01, direction = "both", trace = FALSE)
+summary(lm.count.02)
+```
+The stepAIC function gives me now a suggested formula, what can be used for a further try of the GLM. The coefficients show the weights.
+
+### Adapted GLM with family quasibinomial (GA)
+
+Now, with a new parameter selection present, the process with the glm can continue now.
+As described further above, all parameters present after the stepwise parameter deletion with the function 'stepAIC' for the linear model, will be included in the glm-04 model:
+
+
+```{r 2.11_GLM_GA_4, warning=FALSE}
+# New run of quasibinomial model
+
+glm.share.04 <- glm(GA_share ~ pop_count_BFS + single_share + age0_20 + age20_40 + 
+      age40_60 + birth_munic + birth_cant + birth_CH + male + resid_6_10y + hh_1 + hh_2 + 
+      hh_3_5 + PT_time_medium + PT_time_big + bus_stops_per_pop + other_stops_per_pop + 
+      train_stops_per_pop + bus_stat_per_1000 + other_stat_per_1000 + train_stat_per_1000 + 
+      comb_car_1000 + el_car_1000 + language + PT_fact_big + PT_fact_medium + 
+      train_stops_per_pop:train_stat_per_1000 +  PT_fact_big:PT_fact_medium + 
+      PT_time_medium:PT_time_big + PT_time_medium:PT_fact_medium, 
+                    family = quasibinomial, data = d.norm.share)
+
+summary(glm.share.04)
+```
+
+
+Still, 33 parameters are too much here. In order to reduce further, the 10 lowest t values are removed.
+For the quasibinomial model, the coefficient t-value is a measure of how many standard deviations our coefficient estimate is far away from 0
+
+```{r 2.12_GLM_GA_5, warning=FALSE}
+# final run of glm with 10 parameters less present
+glm.share.05 <- glm(GA_share ~  age0_20 + birth_munic + birth_cant + birth_CH + male + 
+    resid_6_10y + hh_1 + hh_2 + hh_3_5 + PT_time_medium + PT_time_big + 
+    train_stops_per_pop + bus_stat_per_1000 + other_stat_per_1000 + comb_car_1000 + 
+    el_car_1000 + language + PT_fact_big + PT_fact_big:PT_fact_medium + 
+    PT_time_medium:PT_time_big, family = quasibinomial, data = d.norm.share)
+
+summary(glm.share.05)
+```
+At least, all parameters left appear to be highly significant here. The model evaluation in a later section will show, how this model performs.
+
+## Modelling Half Fare tickets (HTA)
+The same procedure shown for the GA is also valid for the HTA and will not be commented the same way here.
+
+### Generalized Linear model (GLM) with family "Binomial" (HTA)
+The same procedure as used for the GA is applied here for the HTA. The first step with the selection of interactions is not done here, as the analysis from the GA should be enough for all target variables. The before defined interaction terms are taken as well into this model here:
+
+
+The first run is done by using all possible influence factors and the already defined interaction terms:
+```{r 2.13_GLM_HTA_1, warning=FALSE, results="hide"}
+#####  Modelling GLM for HTA with share data:
+
+## Interactions: For interaction terms, the same selection is taken as described
+## for the GA model above:
+
+################### Model set up 01 ######################
+glm.HTA.share.01 <- glm(HTA_share ~ . - GA_share - FNT_share
+                    + bus_stops_per_pop:bus_stat_per_1000
+                    + train_stops_per_pop:train_stat_per_1000
+                    + other_stops_per_pop:other_stops_per_pop
+                    + PT_fact_big:PT_fact_medium
+                    + PT_time_big:PT_fact_big
+                    + PT_time_medium:PT_time_big
+                    + PT_fact_medium:PT_time_medium, 
+                family = binomial, data=d.norm.share)
+summary(glm.HTA.share.01)
+
+```
+\includegraphics{GLM_HTA_share_01.png}
+
+```{r 2.14_GLM_HTA_2, warning=FALSE}
+############### Stepwise parameter selection forward and backwards!###########
+glm.HTA.share.02 <- stepAIC(glm.HTA.share.01, direction="both", trace=FALSE)
+summary(glm.HTA.share.02)
+```
+Here, the stepwise parameter selection looks a bit better, giving still 5 significant parameters (including language with three manifestations) instead of 3 as it is the case for the GA.
+In order to achieve a consistent procedure, a linear model is nevertheless made again in order to transfer the variables relevant there into the next run of the GLM.
+
+### Linear Model (LM) (HTA)
+
+Now the linear model will be identified:
+
+```{r 2.15_LM_HTA_1}
+# Model with all predictors including defined interaction terms
+lm.count.HTA <- lm(HTA_BFS ~ . -GA_BFS - fn_tck_BFS 
+                    + bus_count:bus_stat
+                    + train_count:train_stat
+                    + other_count:other_stat
+                    + PT_fact_big:PT_fact_medium
+                    + PT_time_big:PT_fact_big
+                    + PT_time_medium:PT_time_big
+                    + PT_fact_medium:PT_time_medium,
+                  data = d.norm.count.train) 
+
+
+### Stepwise selection of parameters:
+lm.count.HTA2 <- MASS::stepAIC(lm.count.HTA, direction = "both", trace = FALSE)
+summary(lm.count.HTA2)
+
+```
+
+The stepAIC function gives me now a suggested formula, what can be used for a further try of the GLM.
+The coefficients show the weights.
+
+### Adapted GLM with family quasibinomial (HTA)\newline
+Also here, all parameters present after the stepwise parameter deletion with the function ‘stepAIC’ for the linear model, will be included in the next GLM model:
+
+
+Let's have a look at the next model run:
+
+```{r 2.16_GLM_HTA_3}
+# New run of quasibinomial model
+
+glm.HTA.share.03 <- glm(HTA_share ~ single_share + married_share + widowed_share + 
+      age0_20 + age20_40 + age40_60 + birth_munic + birth_cant + male + resid_1_5y + 
+      hh_1 + hh_2 + hh_3_5 + PT_time_medium + PT_time_big + bus_stops_per_pop + 
+      other_stops_per_pop + bus_stat_per_1000 + train_stat_per_1000 + comb_car_1000 +
+      el_car_1000 + language + PT_fact_big + PT_fact_medium + PT_fact_big:PT_fact_medium + 
+      PT_time_big:PT_fact_big + PT_time_medium:PT_time_big, 
+      family = quasibinomial, data=d.norm.share)
+
+summary(glm.HTA.share.03)
+
+```
+
+still, 30 parameters are too much here. IN order to reduce further, the 6 lowest t values are removed. => here to get all parameters with high t value, marked as ***
+The coefficient t-value is a measure of how many standard deviations our coefficient estimate is far away from 0
+
+```{r 2.17_GLM_HTA_4}
+glm.HTA.share.04 <- glm(HTA_share ~ single_share + married_share + age0_20 + 
+                      age20_40 + birth_munic + birth_cant + male + hh_1 + hh_2 + 
+                      hh_3_5 + PT_time_medium + other_stops_per_pop + 
+                      bus_stat_per_1000 + train_stat_per_1000 + comb_car_1000 + 
+                      el_car_1000 + language + PT_fact_big + PT_fact_medium + 
+                      PT_time_big:PT_fact_big + PT_time_medium:PT_time_big,
+                family = quasibinomial, data=d.norm.share)
+
+summary(glm.HTA.share.04)
+```
+At least, all parameters left appear to be highly significant here. The model evaluation in a later section will show how this model performs.
+
+## Modelling Fare Network Tickets (FNT)
+
+The same procedure shown for the GA and HTA is also valid for the FNT and will not be commented the same way here.
+
+### Generalized Linear Model (GLM) with family "Binomial" (FNT)
+
+The same procedure as used for the GA is applied here for the FNT. The first step with the selection of interactions is not done here, as the analysis from the GA should be enough for all target variables. The earlier defined interaction terms are taken as well into this model here:
+
+
+The first run is done by using all possible influence factors and the
+already defined interaction terms:
+```{r 2.18_GLM_FNT_1, warning=FALSE, results="hide"}
+#####  Modelling GLM for FNT with share data:
+
+## Interactions: For interaction terms, the same selection is taken as described
+## for the GA model above:
+
+################### Model set up 01 ######################
+glm.FNT.share.01 <- glm(FNT_share ~ . - GA_share - HTA_share
+                    + bus_stops_per_pop:bus_stat_per_1000
+                    + train_stops_per_pop:train_stat_per_1000
+                    + other_stops_per_pop:other_stops_per_pop
+                    + PT_fact_big:PT_fact_medium
+                    + PT_time_big:PT_fact_big
+                    + PT_time_medium:PT_time_big
+                    + PT_fact_medium:PT_time_medium, 
+                family = binomial, data=d.norm.share)
+summary(glm.FNT.share.01)
+
+```
+\includegraphics{GLM_FNT_share_01.png}
+
+
+```{r 2.19_GLM_FNT_2, warning=FALSE}
+############### Stepwise parameter selection forward and backwards!###########
+glm.FNT.share.02 <- stepAIC(glm.FNT.share.01, direction="both", trace=FALSE)
+summary(glm.FNT.share.02)
+```
+
+Here, the stepwise parameter selection gives back 6 significant parameters. In order to achieve a consistent procedure, a linear model is nevertheless made again in order to transfer the variables relevant there into the next run of the GLM.
+
+### Linear Model (LM) (FNT)
+
+
+Now the linear model will be identified:
+
+```{r 2.20_LM_FNT_1}
+# Model with all predictors including defined interaction terms
+lm.count.FNT <- lm(fn_tck_BFS ~ . -GA_BFS - HTA_BFS 
+                    + bus_count:bus_stat
+                    + train_count:train_stat
+                    + other_count:other_stat
+                    + PT_fact_big:PT_fact_medium
+                    + PT_time_big:PT_fact_big
+                    + PT_time_medium:PT_time_big
+                    + PT_fact_medium:PT_time_medium, 
+                  data = d.norm.count.train) 
+
+lm.count.FNT2 <- MASS::stepAIC(lm.count.FNT, direction = "both", trace = FALSE)
+summary(lm.count.FNT2)
+```
+The stepAIC function gives us now a suggested formula, what can be used for a further try of the GLM. The coefficients show the weights of the parameters.
+
+### Adapted GLM with family quasibinomial (FNT)
+
+Also here, all parameters present after the stepwise parameter deletion with the function ‘stepAIC’ for the
+linear model, will be included in the next GLM model:
+
+```{r 2.21_GLM_FNT_3, warning=FALSE, results='hide'}
+# New run of quasibinomial model
+
+glm.FNT.share.03 <- glm(FNT_share ~ single_share + married_share + 
+                          age20_40 + age40_60 + birth_munic + birth_cant + 
+                          birth_CH + male + resid_1_5y + hh_1 + PT_time_medium + 
+                          PT_time_big + bus_stops_per_pop + other_stops_per_pop + 
+                          train_stops_per_pop + bus_stat_per_1000 + 
+                          other_stat_per_1000 + train_stat_per_1000 + 
+                          comb_car_1000 + el_car_1000 + language + PT_fact_big + 
+                          PT_fact_medium + bus_stops_per_pop:bus_stat_per_1000 + 
+                          train_stops_per_pop:train_stat_per_1000 + 
+                          other_stops_per_pop:other_stat_per_1000 + 
+                          PT_time_big:PT_fact_big + PT_time_medium:PT_time_big + 
+                          PT_time_medium:PT_fact_medium, 
+                family = quasibinomial, data=d.norm.share)
+
+summary(glm.FNT.share.03)
+
+```
+
+\includegraphics{GLM_FNT_share_03.png}
+
+Still, 32 parameters are too much here. In order to reduce further, about 10 - 15 parameters with the lowest t values should be removed.
+The coefficient t-value is a measure of how many standard deviations our coefficient estimate is far away from 0. This will be used as the criterion to eliminate parameters from the model.
+
+Now the final model with only selected parameters:
+```{r 2.22_GLM_FNT_04}
+glm.FNT.share.04 <- glm(FNT_share ~ single_share + married_share + 
+                          age20_40 + birth_munic + birth_cant + 
+                          birth_CH + male + hh_1 + PT_time_medium + 
+                          PT_time_big + bus_stops_per_pop + 
+                          comb_car_1000 + el_car_1000 + language + 
+                          PT_fact_medium + PT_time_medium:PT_time_big + 
+                          PT_time_medium:PT_fact_medium, 
+                family = quasibinomial, data=d.norm.share)
+
+summary(glm.FNT.share.04)
+```
+At least, all parameters left appear to be highly significant here. The model evaluation in a later section will
+show, how this model performs.
+\newpage
+
+# MODEL EVALUATION
+
+This section assesses the model quality of the different models developed. The chapter is divided into a statistical part, which deals with key figures, and a graphical part, where the model quality can be assessed visually.
+
+
+
+## Model fitness
+In this part, the statistical measuring of the RMSE and the Rsquare value is central. 
+To do this, the following formula is formulated:
+
+### Function for Model Evaluation
+For the evaluation of our models we will use the following function, which displays the RMSE and the R_squared for our predicted values.
+
+Linear models and Generalized linear models with family binomial have slightly different properties in the measurement of model quality. For the linear models the adjusted R-squared value can be calculated additionally, for the GLM the explained variance can be calculated by the residual deviation and the null deviation.
+
+```{r 2.23_eval_function}
+eval_results <- function(true, predicted) {
+  SSE <- sum((predicted - true)^2, na.rm = TRUE)
+  SST <- sum((true - mean(true, na.rm = TRUE))^2, na.rm = TRUE)
+  R_square <- 1 - SSE / SST
+  RMSE = sqrt(SSE/length(true))
+
+# Model performance metrics
+  data.frame(RMSE = RMSE,
+           Rsquare = R_square)
+}
+
+# Adjusted R square for linear model
+adj_r2 <- function(lm_model) {
+  summary(lm_model)$adj.r.squared
+}
+
+# deviance explained by glm:
+dev_exp_glm <- function(glm_model) {
+  with(summary(glm_model), 1 - deviance/null.deviance)
+}
+
+
+```
+
+### Model fitness of LM and GLM models:
+
+The various measurements such as RMSE and Rsquare are now summarised in a table for all models. The table is defined as follows:
+```{r 2.24_model_eval_dataframe, warning=FALSE}
+
+model_evaluation <- data.frame("Train_RMSE"=0, "Train_R^2"=0, 
+           "Test_RMSE"=0, "Test_R^2"=0, "nr_param"=0, "Dev.Expl_Adj.R2"=0)
+
+```
+
+The RMSE and Rsquare value is measured both for the Train and Test dataset individually, while the last field in the dataframe, "nr_param", describes the complexity of the model with the number of different parameters present.
+
+
+The table is filled as the following, here with the example of the first GLM model for the GA data:
+```{r 2.25_eval_GA_GLM1, warning=FALSE}
+## Evaluating GLM 01 (original glm with all data) 
+model_evaluation["GA_GLM_01",] <- c(eval_results(d.norm.share.train$GA_share,
+                                    predict(glm.share.01, d.norm.share.train, 
+                                            type="response")),
+                                 eval_results(d.norm.share.test$GA_share, 
+                                    predict(glm.share.01, d.norm.share.test, 
+                                            type="response")),
+                                 glm.share.01$rank,
+                                 dev_exp_glm(glm.share.01))
+
+```
+
+The original data is compared with the prediction each for the test and Train dataset, using the above defined formula. With the "rank"-option, the number of parameters are filled in the last step. The same procedure is valid for all the other models including the ones for the HTA and FNT data. It is not showed here in order to save some space.
+
+```{r 2.26_eval_model_all, warning=FALSE, include=FALSE}
+
+#### GA ####
+
+## Evaluating GLM 01 (original glm with all data) 
+model_evaluation["GA_GLM_01",] <- c(eval_results(d.norm.share.train$GA_share,
+                                    predict(glm.share.01, d.norm.share.train, 
+                                            type="response")),
+                                 eval_results(d.norm.share.test$GA_share, 
+                                    predict(glm.share.01, d.norm.share.test, 
+                                            type="response")),
+                                 glm.share.01$rank,
+                                 dev_exp_glm(glm.share.01))
+
+## Evaluating GLM 04 (altered GLM after stepwise selection within class "binomial")
+model_evaluation["GA_GLM_03",] <- c(eval_results(d.norm.share.train$GA_share,
+                                    predict(glm.share.03, d.norm.share.train, 
+                                            type="response")),
+                                 eval_results(d.norm.share.test$GA_share, 
+                                    predict(glm.share.03, d.norm.share.test, 
+                                            type="response")),
+                                 glm.share.03$rank,
+                                 dev_exp_glm(glm.share.03))
+
+## Evaluating GLM 04 (adapted GLM with parameter selection from linear model)
+model_evaluation["GA_GLM_04",] <- c(eval_results(d.norm.share.train$GA_share,
+                                    predict(glm.share.04, d.norm.share.train, 
+                                            type="response")),
+                                 eval_results(d.norm.share.test$GA_share, 
+                                    predict(glm.share.04, d.norm.share.test, 
+                                            type="response")),
+                                 glm.share.04$rank,
+                                 dev_exp_glm(glm.share.04))
+
+## Evaluating GLM 05  (reduced GLM after second parameter elimination)
+model_evaluation["GA_GLM_05",] <- c(eval_results(d.norm.share.train$GA_share,
+                                    predict(glm.share.05, d.norm.share.train, 
+                                            type="response")),
+                                 eval_results(d.norm.share.test$GA_share, 
+                                    predict(glm.share.05, d.norm.share.test, 
+                                            type="response")),
+                                 glm.share.05$rank,
+                                 dev_exp_glm(glm.share.05))
+
+## Evaluating LM01 (original lm with all data, LOG-TRANSFORMED)
+model_evaluation["GA_LM_01_log",] <- c(eval_results(d.norm.count.train$GA_BFS,
+                                    predict(lm.count.01, d.norm.count.train, 
+                                            type="response")),
+                                 eval_results(d.norm.count.test$GA_BFS, 
+                                    predict(lm.count.01, d.norm.count.test, 
+                                            type="response")),
+                                 lm.count.01$rank,
+                                 adj_r2(lm.count.01))
+
+## Evaluating LM01 (original lm with all data, DE-LOGARITHMIZED)
+model_evaluation["GA_LM_01_cnt",] <- c(eval_results(exp(d.norm.count.train$GA_BFS),
+                                    exp(predict(lm.count.01, d.norm.count.train, 
+                                            type="response"))),
+                                 eval_results(exp(d.norm.count.test$GA_BFS), 
+                                    exp(predict(lm.count.01, d.norm.count.test, 
+                                            type="response"))),
+                                 lm.count.01$rank,
+                                 adj_r2(lm.count.01))
+
+## Evaluating LM02 (LM after stepwise parameter selection, log-transformed)
+model_evaluation["GA_LM_02_log",] <- c(eval_results(d.norm.count.train$GA_BFS,
+                                    predict(lm.count.02, d.norm.count.train, 
+                                            type="response")),
+                                 eval_results(d.norm.count.test$GA_BFS, 
+                                    predict(lm.count.02, d.norm.count.test, 
+                                            type="response")),
+                                 lm.count.02$rank,
+                                 adj_r2(lm.count.02))
+
+## Evaluating LM02 (LM after stepwise parameter selection, DE-LOGARITHMIZED)
+model_evaluation["GA_LM_02_cnt",] <- c(eval_results(exp(d.norm.count.train$GA_BFS),
+                                    exp(predict(lm.count.02, d.norm.count.train, 
+                                            type="response"))),
+                                 eval_results(exp(d.norm.count.test$GA_BFS), 
+                                    exp(predict(lm.count.02, d.norm.count.test, 
+                                            type="response"))),
+                                 lm.count.02$rank,
+                                 adj_r2(lm.count.02))
+
+
+#### HTA ####
+
+
+## Evaluating GLM 01 (original glm with all data)
+model_evaluation["HTA_GLM_01",] <- c(eval_results(d.norm.share.train$HTA_share,
+                                    predict(glm.HTA.share.01, d.norm.share.train, 
+                                            type="response")),
+                                 eval_results(d.norm.share.test$HTA_share, 
+                                    predict(glm.HTA.share.01, d.norm.share.test, 
+                                            type="response")),
+                                 glm.HTA.share.01$rank,
+                                 dev_exp_glm(glm.HTA.share.01)) 
+
+## Evaluating GLM 02 (altered GLM after stepwise selection within class "binomial")
+model_evaluation["HTA_GLM_02",] <- c(eval_results(d.norm.share.train$HTA_share,
+                                    predict(glm.HTA.share.02, d.norm.share.train, 
+                                            type="response")),
+                                 eval_results(d.norm.share.test$HTA_share, 
+                                    predict(glm.HTA.share.02, d.norm.share.test, 
+                                            type="response")),
+                                 glm.HTA.share.02$rank,
+                                 dev_exp_glm(glm.HTA.share.02))
+
+## Evaluating GLM 03 (adapted GLM with parameter selection from linear model)
+model_evaluation["HTA_GLM_03",] <- c(eval_results(d.norm.share.train$HTA_share,
+                                    predict(glm.HTA.share.03, d.norm.share.train, 
+                                            type="response")),
+                                 eval_results(d.norm.share.test$HTA_share, 
+                                    predict(glm.HTA.share.03, d.norm.share.test, 
+                                            type="response")),
+                                 glm.HTA.share.03$rank,
+                                 dev_exp_glm(glm.HTA.share.03))
+
+## Evaluating GLM 04  (reduced GLM after second parameter elimination)
+model_evaluation["HTA_GLM_04",] <- c(eval_results(d.norm.share.train$HTA_share,
+                                    predict(glm.HTA.share.04, d.norm.share.train, 
+                                            type="response")),
+                                 eval_results(d.norm.share.test$HTA_share, 
+                                    predict(glm.HTA.share.04, d.norm.share.test, 
+                                            type="response")),
+                                 glm.HTA.share.04$rank,
+                                 dev_exp_glm(glm.HTA.share.04))
+
+## Evaluating LM01 (original lm with all data, LOG-TRANSFORMED)
+model_evaluation["HTA_LM_01_log",] <- c(eval_results(d.norm.count.train$HTA_BFS,
+                                    predict(lm.count.HTA, d.norm.count.train, 
+                                            type="response")),
+                                 eval_results(d.norm.count.test$HTA_BFS, 
+                                    predict(lm.count.HTA, d.norm.count.test, 
+                                            type="response")),
+                                 lm.count.HTA$rank,
+                                 adj_r2(lm.count.HTA))
+
+## Evaluating LM01 (original lm with all data, DE-LOGARITHMIZED)
+model_evaluation["HTA_LM_01_cnt",] <- c(eval_results(exp(d.norm.count.train$HTA_BFS),
+                                    exp(predict(lm.count.HTA, d.norm.count.train, 
+                                            type="response"))),
+                                 eval_results(exp(d.norm.count.test$HTA_BFS), 
+                                    exp(predict(lm.count.HTA, d.norm.count.test, 
+                                            type="response"))),
+                                 lm.count.HTA$rank,
+                                 adj_r2(lm.count.HTA))
+
+## Evaluating LM02 (LM after stepwise parameter selection, LOG-TRANSFORMED)
+model_evaluation["HTA_LM_02_log",] <- c(eval_results(d.norm.count.train$HTA_BFS,
+                                    predict(lm.count.HTA2, d.norm.count.train, 
+                                            type="response")),
+                                 eval_results(d.norm.count.test$HTA_BFS, 
+                                    predict(lm.count.HTA2, d.norm.count.test, 
+                                            type="response")),
+                                 lm.count.HTA2$rank,
+                                 adj_r2(lm.count.HTA2))
+
+## Evaluating LM02 (LM after stepwise parameter selection, DE-LOGARITHMIZED)
+model_evaluation["HTA_LM_02_cnt",] <- c(eval_results(exp(d.norm.count.train$HTA_BFS),
+                                    exp(predict(lm.count.HTA2, d.norm.count.train, 
+                                            type="response"))),
+                                 eval_results(exp(d.norm.count.test$HTA_BFS), 
+                                    exp(predict(lm.count.HTA2, d.norm.count.test, 
+                                            type="response"))),
+                                 lm.count.HTA2$rank,
+                                 adj_r2(lm.count.HTA2))
+
+
+#### FNT ####
+
+
+## Evaluating GLM 01 (original glm with all data)
+model_evaluation["FNT_GLM_01",] <- c(eval_results(d.norm.share.train$FNT_share,
+                                    predict(glm.FNT.share.01, d.norm.share.train, 
+                                            type="response")),
+                                 eval_results(d.norm.share.test$FNT_share, 
+                                    predict(glm.FNT.share.01, d.norm.share.test, 
+                                            type="response")),
+                                 glm.FNT.share.01$rank,
+                                 dev_exp_glm(glm.FNT.share.01))
+
+## Evaluating FNT 02 (altered GLM after stepwise selection within class "binomial")
+model_evaluation["FNT_GLM_02",] <- c(eval_results(d.norm.share.train$FNT_share,
+                                    predict(glm.FNT.share.02, d.norm.share.train, 
+                                            type="response")),
+                                 eval_results(d.norm.share.test$FNT_share, 
+                                    predict(glm.FNT.share.02, d.norm.share.test, 
+                                            type="response")),
+                                 glm.FNT.share.02$rank,
+                                 dev_exp_glm(glm.FNT.share.02))
+
+## Evaluating GLM 03 (adapted GLM with parameter selection from linear model)
+model_evaluation["FNT_GLM_03",] <- c(eval_results(d.norm.share.train$FNT_share,
+                                    predict(glm.FNT.share.03, d.norm.share.train, 
+                                            type="response")),
+                                 eval_results(d.norm.share.test$FNT_share, 
+                                    predict(glm.FNT.share.03, d.norm.share.test, 
+                                            type="response")),
+                                 glm.FNT.share.03$rank,
+                                 dev_exp_glm(glm.FNT.share.03))
+
+## Evaluating GLM 04  (reduced GLM after second parameter elimination)
+model_evaluation["FNT_GLM_04",] <- c(eval_results(d.norm.share.train$FNT_share,
+                                    predict(glm.FNT.share.04, d.norm.share.train, 
+                                            type="response")),
+                                 eval_results(d.norm.share.test$FNT_share, 
+                                    predict(glm.FNT.share.04, d.norm.share.test, 
+                                            type="response")),
+                                 glm.FNT.share.04$rank,
+                                 dev_exp_glm(glm.FNT.share.04))
+
+## Evaluating LM01 (original lm with all data, LOG-TRANSFORMED)
+model_evaluation["FNT_LM_01_log",] <- c(eval_results(d.norm.count.train$fn_tck_BFS,
+                                    predict(lm.count.FNT, d.norm.count.train, 
+                                            type="response")),
+                                 eval_results(d.norm.count.test$fn_tck_BFS, 
+                                    predict(lm.count.FNT, d.norm.count.test, 
+                                            type="response")),
+                                 lm.count.FNT$rank,
+                                 adj_r2(lm.count.FNT))
+
+## Evaluating LM01 (original lm with all data, DE-LOGARITHMIZED)
+model_evaluation["FNT_LM_01_cnt",] <- c(eval_results(exp(d.norm.count.train$fn_tck_BFS),
+                                    exp(predict(lm.count.FNT, d.norm.count.train, 
+                                            type="response"))),
+                                 eval_results(exp(d.norm.count.test$fn_tck_BFS), 
+                                    exp(predict(lm.count.FNT, d.norm.count.test, 
+                                            type="response"))),
+                                 lm.count.FNT$rank,
+                                 adj_r2(lm.count.FNT))
+
+## Evaluating LM02 (LM after stepwise parameter selection, LOG-TRANSFORMED)
+model_evaluation["FNT_LM_02_log",] <- c(eval_results(d.norm.count.train$fn_tck_BFS,
+                                    predict(lm.count.FNT2, d.norm.count.train, 
+                                            type="response")),
+                                 eval_results(d.norm.count.test$fn_tck_BFS, 
+                                    predict(lm.count.FNT2, d.norm.count.test, 
+                                            type="response")),
+                                 lm.count.FNT2$rank,
+                                 adj_r2(lm.count.FNT2))
+
+## Evaluating LM02 (LM after stepwise parameter selection, DE-LOGARITHMIZED)
+model_evaluation["FNT_LM_02_cnt",] <- c(eval_results(exp(d.norm.count.train$fn_tck_BFS),
+                                    exp(predict(lm.count.FNT2, d.norm.count.train, 
+                                            type="response"))),
+                                 eval_results(exp(d.norm.count.test$fn_tck_BFS), 
+                                    exp(predict(lm.count.FNT2, d.norm.count.test, 
+                                            type="response"))),
+                                 lm.count.FNT2$rank,
+                                 adj_r2(lm.count.FNT2))
+
+# delete the first empty entry in the table:
+model_evaluation <- model_evaluation[-1,]
+
+``` 
+
+The filled table looks as the following:
+
+```{r 2.27_final_model_eval_table}
+round(model_evaluation, digits=2) 
+```
+
+
+Basically, it can be seen that the linear models have a higher accuracy, measured by the R-squared value. This is not surprising, however, since in the count data the population size plays a role in most variables even after normalization, both in the explanatory and target variables. The more inhabitants a municipality has, the higher the number of tickets sold on average, as well as the number of people who are men, under 20 years of age, live in a one-person household or are divorced, for example. That is also the reason why in principle work was done with the shares. Nevertheless, the linear models were important to get an idea of the most important influencing factors through the step-by-step parameter elimination procedure with stepAIC.
+
+Within the GLM for general subscriptions (GA), it is noticeable that the various models differ greatly in the number of parameters used. The model with all possible variables and interactions has almost 600 parameters, while the model after stepwise selection "GA_GLM_02" has only 4. The explained variance drops from 80% to 27% herewith. Even if only 4 variables can still explain a part, the loss of accuracy is too great. Hence the approach of reducing the original parameters with the stepwise selection from the linear model. In the end, 23 parameters were defined that had an R-squared value of exactly 50 %. This model "GA_GLM_05" builds the final model for the GA.
+
+For the half-fare season tickets, the GLM model generally performs better with higher accuracies between 71% (all parameters after stepwise selection from the linear model) and 59% (model after stepwise selection within the GLM-binomial environment). Here one could say that the simplest model with only 8 parameters is accepted because it can still explain 59% of the variance. Since the procedure should be the same for all target variables, parameters were nevertheless added here again to reach the final model "HTA_GLM_04" with 24 parameters and an explained variance of 69%.
+
+The procedure works least well for the Fare Network Tickets. With the same procedure, 43% of the variance can finally be explained with a model consisting of 20 parameters ("FNT_GLM_04"). Here it is also noticeable that the linear model with an R-squared value of 0.64 is clearly below the corresponding values for GA (0.90) and Half-Fare Travelcards (HTA, 0.97).
+
+
+
+## Graphical evaluation
+
+The second part of the evaluation is a graphical analysis of the forecast values with the real values. This shows the characteristics of the different models and in particular graphically shows how strong the dispersion is compared to the true value.
+
+### GA models
+
+To start, the graphical evaluation of all different GLM models of the General Season Ticket (GA).
+
+```{r 2.28_GA_model_eval_graphically, fig.height=3.5, echo=FALSE, warning=FALSE, message=FALSE}
+# evaluate graphically with Step AIC
+
+glm_ga_01_te <- ggplot(d.norm.share.test, aes(y=GA_share ,x=predict(glm.share.01, 
+                                                  d.norm.share.test, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("GA_GLM_01 TEST") + 
+  geom_point(shape = 1, alpha = 0.7) + 
+  theme(plot.title = element_text(size=8), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_ga_01_tr <- ggplot(d.norm.share.train,aes(y=GA_share, x=predict(glm.share.01,
+                                                  d.norm.share.train, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("GA_GLM_01 TRAIN") + 
+  geom_point(shape = 1, alpha = 0.7, colour = "darkblue") + 
+  theme(plot.title = element_text(size=8, colour="darkblue"), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_ga_03_te <- ggplot(d.norm.share.test, aes(y=GA_share ,x=predict(glm.share.03,
+                                                  d.norm.share.test, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("GA_GLM_03 TEST") + 
+  geom_point(shape = 1, alpha = 0.7) + 
+  theme(plot.title = element_text(size=8), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_ga_03_tr <- ggplot(d.norm.share.train,aes(y=GA_share, x=predict(glm.share.03,
+                                                  d.norm.share.train, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("GA_GLM_03 TRAIN") + 
+  geom_point(shape = 1, alpha = 0.7, colour = "darkblue") + 
+  theme(plot.title = element_text(size=8, colour="darkblue"), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_ga_04_te <- ggplot(d.norm.share.test, aes(y=GA_share ,x=predict(glm.share.04,
+                                                  d.norm.share.test, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("GA_GLM_04 TEST") + 
+  geom_point(shape = 1, alpha = 0.7) + 
+  theme(plot.title = element_text(size=8), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_ga_04_tr <- ggplot(d.norm.share.train,aes(y=GA_share, x=predict(glm.share.04,
+                                                  d.norm.share.train, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("GA_GLM_04 TRAIN") + 
+  geom_point(shape = 1, alpha = 0.7, colour = "darkblue") + 
+  theme(plot.title = element_text(size=8, colour="darkblue"), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_ga_05_te <- ggplot(d.norm.share.test, aes(y=GA_share ,x=predict(glm.share.05,
+                                                  d.norm.share.test, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("GA_GLM_05 TEST") + 
+  geom_point(shape = 1, alpha = 0.7) + 
+  theme(plot.title = element_text(size=8), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_ga_05_tr <- ggplot(d.norm.share.train,aes(y=GA_share, x=predict(glm.share.05,
+                                                  d.norm.share.train, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("GA_GLM_05 TRAIN") + 
+  geom_point(shape = 1, alpha = 0.7, colour = "darkblue") + 
+  theme(plot.title = element_text(size=8, colour="darkblue"), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+
+gridExtra::grid.arrange(nrow = 2, ncol = 4, 
+            glm_ga_01_te + stat_smooth(size=0.5, method="glm",se=FALSE),
+            glm_ga_01_tr + stat_smooth(size=0.5, method="glm",se=FALSE, colour="black"),
+            glm_ga_03_te + stat_smooth(size=0.5, method="glm",se=FALSE),
+            glm_ga_03_tr + stat_smooth(size=0.5, method="glm",se=FALSE, colour="black"),
+            glm_ga_04_te + stat_smooth(size=0.5, method="glm",se=FALSE),
+            glm_ga_04_tr + stat_smooth(size=0.5, method="glm",se=FALSE, colour="black"),
+            glm_ga_05_te + stat_smooth(size=0.5, method="glm",se=FALSE),
+            glm_ga_05_tr + stat_smooth(size=0.5, method="glm",se=FALSE, colour="black"),
+              top="GA: GRAPHICAL MODEL COMPARISON of different GLM")
+```
+
+### HTA models
+
+And now all graphical evaluations of the different GLM models of the Half Fare Travelcards (HTA).
+
+
+```{r 2.29_HTA_model_eval_graphically, fig.height=3.5, echo=FALSE, warning=FALSE, message=FALSE}
+# evaluate graphically with Step AIC
+
+
+glm_hta_01_te <- ggplot(d.norm.share.test, aes(y=HTA_share ,x=predict(glm.HTA.share.01, 
+                                                  d.norm.share.test, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("HTA_GLM_01 TEST") + 
+  geom_point(shape = 1, alpha = 0.7) + 
+  theme(plot.title = element_text(size=8), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_hta_01_tr <- ggplot(d.norm.share.train,aes(y=HTA_share, x=predict(glm.HTA.share.01,
+                                                  d.norm.share.train, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("HTA_GLM_01 TRAIN") + 
+  geom_point(shape = 1, alpha = 0.7, colour = "darkblue") + 
+  theme(plot.title = element_text(size=8, colour="darkblue"), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_hta_02_te <- ggplot(d.norm.share.test, aes(y=HTA_share ,x=predict(glm.HTA.share.02,
+                                                  d.norm.share.test, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("HTA_GLM_02 TEST") + 
+  geom_point(shape = 1, alpha = 0.7) + 
+  theme(plot.title = element_text(size=8), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_hta_02_tr <- ggplot(d.norm.share.train,aes(y=HTA_share, x=predict(glm.HTA.share.02,
+                                                  d.norm.share.train, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("HTA_GLM_02 TRAIN") + 
+  geom_point(shape = 1, alpha = 0.7, colour = "darkblue") + 
+  theme(plot.title = element_text(size=8, colour="darkblue"), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_hta_03_te <- ggplot(d.norm.share.test, aes(y=HTA_share ,x=predict(glm.HTA.share.03,
+                                                  d.norm.share.test, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("HTA_GLM_03 TEST") + 
+  geom_point(shape = 1, alpha = 0.7) + 
+  theme(plot.title = element_text(size=8), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_hta_03_tr <- ggplot(d.norm.share.train,aes(y=HTA_share, x=predict(glm.HTA.share.03,
+                                                  d.norm.share.train, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("HTA_GLM_03 TRAIN") + 
+  geom_point(shape = 1, alpha = 0.7, colour = "darkblue") + 
+  theme(plot.title = element_text(size=8, colour="darkblue"), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_hta_04_te <- ggplot(d.norm.share.test, aes(y=HTA_share ,x=predict(glm.HTA.share.04,
+                                                  d.norm.share.test, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("HTA_GLM_04 TEST") + 
+  geom_point(shape = 1, alpha = 0.7) + 
+  theme(plot.title = element_text(size=8), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_hta_04_tr <- ggplot(d.norm.share.train,aes(y=HTA_share, x=predict(glm.HTA.share.04,
+                                                  d.norm.share.train, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("HTA_GLM_04 TRAIN") + 
+  geom_point(shape = 1, alpha = 0.7, colour = "darkblue") + 
+  theme(plot.title = element_text(size=8, colour="darkblue"), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+
+gridExtra::grid.arrange(nrow = 2, ncol = 4, 
+            glm_hta_01_te + stat_smooth(size=0.5, method="glm",se=FALSE),
+            glm_hta_01_tr + stat_smooth(size=0.5, method="glm",se=FALSE, colour="black"),
+            glm_hta_02_te + stat_smooth(size=0.5, method="glm",se=FALSE),
+            glm_hta_02_tr + stat_smooth(size=0.5, method="glm",se=FALSE, colour="black"),
+            glm_hta_03_te + stat_smooth(size=0.5, method="glm",se=FALSE),
+            glm_hta_03_tr + stat_smooth(size=0.5, method="glm",se=FALSE, colour="black"),
+            glm_hta_04_te + stat_smooth(size=0.5, method="glm",se=FALSE),
+            glm_hta_04_tr + stat_smooth(size=0.5, method="glm",se=FALSE, colour="black"),
+              top="HTA: GRAPHICAL MODEL COMPARISON of different GLM")
+```
+
+### FNT models
+
+Here the graphical evaluation of all different GLM models of the Fare Network Tickets (FNT).
+
+```{r 2.30_FNT_model_eval_graphically, fig.height=3.5, echo=FALSE, warning=FALSE, message=FALSE}
+# evaluate graphically with Step AIC
+
+
+glm_fnt_01_te <- ggplot(d.norm.share.test, aes(y=FNT_share ,x=predict(glm.FNT.share.01, 
+                                                  d.norm.share.test, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("FNT_GLM_01 TEST") + 
+  geom_point(shape = 1, alpha = 0.7) + 
+  theme(plot.title = element_text(size=8), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_fnt_01_tr <- ggplot(d.norm.share.train,aes(y=FNT_share, x=predict(glm.FNT.share.01,
+                                                  d.norm.share.train, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("FNT_GLM_01 TRAIN") + 
+  geom_point(shape = 1, alpha = 0.7, colour = "darkblue") + 
+  theme(plot.title = element_text(size=8, colour="darkblue"), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_fnt_02_te <- ggplot(d.norm.share.test, aes(y=FNT_share ,x=predict(glm.FNT.share.02,
+                                                  d.norm.share.test, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("FNT_GLM_02 TEST") + 
+  geom_point(shape = 1, alpha = 0.7) + 
+  theme(plot.title = element_text(size=8), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_fnt_02_tr <- ggplot(d.norm.share.train,aes(y=FNT_share, x=predict(glm.FNT.share.02,
+                                                  d.norm.share.train, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("FNT_GLM_02 TRAIN") + 
+  geom_point(shape = 1, alpha = 0.7, colour = "darkblue") + 
+  theme(plot.title = element_text(size=8, colour="darkblue"), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_fnt_03_te <- ggplot(d.norm.share.test, aes(y=FNT_share ,x=predict(glm.FNT.share.03,
+                                                  d.norm.share.test, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("FNT_GLM_03 TEST") + 
+  geom_point(shape = 1, alpha = 0.7) + 
+  theme(plot.title = element_text(size=8), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_fnt_03_tr <- ggplot(d.norm.share.train,aes(y=FNT_share, x=predict(glm.FNT.share.03,
+                                                  d.norm.share.train, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("FNT_GLM_03 TRAIN") + 
+  geom_point(shape = 1, alpha = 0.7, colour = "darkblue") + 
+  theme(plot.title = element_text(size=8, colour="darkblue"), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_fnt_04_te <- ggplot(d.norm.share.test, aes(y=FNT_share ,x=predict(glm.FNT.share.04,
+                                                  d.norm.share.test, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("FNT_GLM_04 TEST") + 
+  geom_point(shape = 1, alpha = 0.7) + 
+  theme(plot.title = element_text(size=8), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+glm_fnt_04_tr <- ggplot(d.norm.share.train,aes(y=FNT_share, x=predict(glm.FNT.share.04,
+                                                  d.norm.share.train, type="response"))) +
+  labs(y= "actual", x = "predicted") + ggtitle("FNT_GLM_04 TRAIN") + 
+  geom_point(shape = 1, alpha = 0.7, colour = "darkblue") + 
+  theme(plot.title = element_text(size=8, colour="darkblue"), axis.text = element_text(size=7),
+        axis.title = element_text(size=7))
+
+
+gridExtra::grid.arrange(nrow = 2, ncol = 4, 
+            glm_fnt_01_te + stat_smooth(size=0.5, method="glm",se=FALSE),
+            glm_fnt_01_tr + stat_smooth(size=0.5, method="glm",se=FALSE, colour="black"),
+            glm_fnt_02_te + stat_smooth(size=0.5, method="glm",se=FALSE),
+            glm_fnt_02_tr + stat_smooth(size=0.5, method="glm",se=FALSE, colour="black"),
+            glm_fnt_03_te + stat_smooth(size=0.5, method="glm",se=FALSE),
+            glm_fnt_03_tr + stat_smooth(size=0.5, method="glm",se=FALSE, colour="black"),
+            glm_fnt_04_te + stat_smooth(size=0.5, method="glm",se=FALSE),
+            glm_fnt_04_tr + stat_smooth(size=0.5, method="glm",se=FALSE, colour="black"),
+              top="FNT: GRAPHICAL MODEL COMPARISON of different GLM")
+```
+
+
+## Comparing estimates of the different models
+
+Out of the graphical analysis, the final models can be confirmed as the following:
+
+* GA_GLM_05
+* HTA_GLM_04
+* FNT_GLM_04
+
+From these models, all estimates can be compared and stored in a separate table. As the all have normalized variables, the estimates can be compared as the weight is the same for all herewith.
+
+```{r 2.31_final_model_estimates}
+ga.coef <- data.frame(as.list(glm.share.05$coefficients))
+
+hta.coef <- data.frame(as.list(glm.HTA.share.04$coefficients))
+
+fnt.coef <- data.frame(as.list(glm.FNT.share.04$coefficients))
+
+inf_factors <- rbind.fill(ga.coef, hta.coef, fnt.coef)
+inf_factors <- t(inf_factors)
+colnames(inf_factors) <- c("GA_share", "HTA_share", "FNT_share")
+
+### Write csv
+write.csv(inf_factors, file="inf_factors.csv")
+
+```
+
+All estimates can be plottes against each other to recognize similarities between GA, HTA and FNT:
+```{r 2.32_model_estimates_comparison, warning=FALSE, message=FALSE}
+
+
+lowerFn <- function(data, mapping, method = "lm", ...) {
+  p <- ggplot(data = data, mapping = mapping) +
+    geom_point(colour = "blue", size=1.2) +
+    geom_smooth(method = method, color = "black", ...)
+  p
+}
+
+
+ggpairs(data.frame(inf_factors[2:32,]),
+        lower = list(continuous= wrap(lowerFn, method = "lm")),
+        diag = list(continuous = wrap("barDiag", colour = "blue")),
+        upper = list(continuous = wrap("cor", size = 6))) + 
+  ggtitle("Comparison of MODEL ESTIMATES for the GA-, HTA- and FNT-model")
+```
+The estimates for GA and HTA are strongly correlating with a correlation value of 0.95! That means that the estimates for the both models are very similar, so high values in one estimate for the GA are correlating with high values in the same estimate for the HTA model. The FNT-model is behaving completely different with negative correlation values against the other two models. What, if we just look at the share values directly and compare them?
+
+
+```{r 2.33_share_comparison, warning=FALSE, message=FALSE}
+ggpairs(data.frame(d.share[,c("GA_share", "HTA_share", "FNT_share")]),
+        lower = list(continuous= wrap(lowerFn, method = "lm")),
+        diag = list(continuous = wrap("barDiag", colour = "blue")),
+        upper = list(continuous = wrap("cor", size = 6))) + 
+  ggtitle("Comparison of SHARE VALUES for GA, HTA and FNT") 
+```
+Similar correlation values can be found here as well. It seems that the proportions for GA and HTA behave very similarly. In municipalities with a high proportion of GA travelcards, half-fare cards are often also represented more frequently. 
+On the other hand, it is the other way round with regard to the fare network tickets. The greater the proportion of GA or half-fare cards, the smaller the proportion of group season tickets tends to be. *literature ?*
+
+## Parameter selection for Cluster Analysis
+
+The different estimates values of the individual parameters are shown in the Tableau Book "Influence factors".
+
+All values in the table "inf_factors" are taken into the cluster analysis, which marks the next section of this script. For this purpose, a separate file is created, which reduces the original dataset to the relevant factors:
+
+I build an extra dataframe with these variables, using the original share dataset:
+```{r 2.34_output_table_CA}
+rownames(inf_factors)
+
+# filtering out language (loading separate) and interaction terms
+cl.an.input <- d.norm.share[,c("language", rownames(inf_factors)
+                               [c(2:17, 21, 24:29, 31)])]
+```
+
+
+
+\newpage
+# CLUSTER ANALYSIS
+
+*The best model of the different approaches will result in the highest accuracy and a corresponding list of parameters which are relevant and should be focussed on in the cluster analysis. Many, diverse communities can make it difficult to find easily separable clusters. Therefore, the first step of the cluster analysis is the reduction of the data to the cantonal level. For this purpose, a separate table must be created with a similar procedure as described in chapter 5.2.2, with the shares calculated on this new level of aggregation. Different options of cluster methods will be integrated in the analysis. I will use an agglomerative clustering model to start, which does not need a pre-defined number of clusters (Ward, 1963). This is an advantage, especially because it is hard to estimate in advance what number of groups will be useful at the end. Alternative models would be a k-means clustering (partitioning method) with a given number of clusters (MacQueen, 1967), a Generalized Mixture Model (GMM) which uses statistical models and is not based simply on a distance measure (Rasmussen, 1999), or even a density-based clustering like DBSCAN which assigns points to clusters based on densities in the data, returning also outliers (Ester et al., 1996).*
+
+The primary aim of cluster analysis is to identify spatial distribution patterns of certain characteristics with regard to relevant influencing factors. This requires the integration of the shares that were also used in the modelling. Particularly in cluster analysis, it is also important to carry out a normalization so that all variables have the same influence. Therefore, the normalized "share" table is used for the cluster analysis.
+
+
+## Cluster analysis on the level of the municipality
+In a first attempt, the cluster analysis is carried out at the level of the municipalities. Since this is an exploratory approach, primarily an agglomerative procedure is used (Ward, 1963). With the reasonable number of clusters obtained in this way, a k-means procedure is then applied later, along with density-based DBSCAN clustering as a supplement.
+
+
+### Preparation of clustering
+As a basis for all clustering methods, a distance matrix must be calculated. For a visual representation, the first two principal components will then finally also have to be calculated so that as much as possible of the variance present in the data can be represented two-dimensionally.
+
+
+```{r 3.01_CA_preparation_munic}
+# Distance matrix
+dp <- dist(cl.an.input[,2:25]) ## Euclidean distance
+
+# Principal components
+PC.inf.fac <- princomp(cl.an.input[,2:25]) # without language
+summary(PC.inf.fac, loadings = FALSE) 
+
+# first 2 PCs explain approx. 30% of the variance, 5 PC about 54%
+
+plot(PC.inf.fac, main = "Principal components: Explained variances per PC")
+
+# write two first principal components out
+pc <- PC.inf.fac$scores[,1:2]
+```
+
+### Agglomerative Clustering
+
+First, as described above, the approach of agglomerative clustering. This fits best the explorative purpose of this work.
+```{r 3.02_aggloclust_munic}
+## Agglomerative clustering with complete linkage
+cl.inf.fac <- hclust(dp, method = "complete")
+
+## Show dendrogram
+plot(cl.inf.fac)
+abline(h=14, col="blue")
+```
+Out of the dendrogram, it is hard to say how many clusters would be accurate. But it can be seen, that it's going to be very hard to recognize clusters, as there are many clusters with only very little observations which are cut very far up in the tree. I try to cut the tree approximately on the drawn line so that I get at least 2 larger groups.
+
+```{r 3.03_agglo_clust_visualize_munic, warning=FALSE}
+## Split into groups
+k = 18 # with 18 clusters, at least 2 big groups!
+grps <- cutree(cl.inf.fac, k = k) 
+
+
+## Visualize result in PC 1 & 2
+plot(pc, pch = grps, col=grps, lwd=2, main="Cluster result agglomerative clustering") 
+legend("bottomright", legend = 1:k, pch = 1:k, col=1:k, bty="n", cex=0.85)
+
+## Look at means of clusters / centroids
+# aggregate(cl.an.input, by=list(cluster=grps), mean)
+```
+
+The silhouette values can give us an evluation of the quality:
+
+```{r 3.04_aggl_cluster_silhouette_munic}
+## Silhouette plot from package "cluster"
+summary(cluster::silhouette(grps, dp)) 
+
+```
+Due to the amount of data, the silhouette plot is not shown properly, but the average silhouette width of 0.11 is very low, making the classification relatively bad.
+
+### k-means clustering
+The second method is k-means clustering, in which it must be defined from the beginning how many clusters there should eventually be. 
+
+```{r 3.05_kmeans1_munic}
+# k-means
+
+## Choose number of clusters k with scree plot
+nr <- 12
+wss <- rep(0, nr)
+for (i in 1:nr) wss[i] <- sum(kmeans(cl.an.input[,2:25], centers = i, nstart = 20)$withinss)
+par(mfrow = c(1,1))
+plot(1:nr, wss, type = "b", xlab = "Number of groups", ylab = "Within groups sum of squares")
+```
+No kink can be detected here unfortunately. With this scree plot, there is no good basis for a decision here, so everything from 1-10 is tried out and the corresponding silhouette values are compared with each other.
+
+```{r 3.06_kmeans2_munic, warning=FALSE}
+seed = 123
+for(k in 2:10) {
+  seed = 123
+  ## k-means with 3-10 centers
+  ckm <- kmeans(cl.an.input[,2:25], centers = k, nstart = 10)
+  grpsKM <- ckm$cluster
+
+  ## Silhouette Summary
+  print(paste("k means clustering with ", k, "clusters: Individual silhouette widths:"))
+  print(summary(silhouette(grpsKM, dp))[1])
+  
+}
+```
+Possibilities are k=2 or k=6 here:
+
+```{r 3.07_kmeans3_munic}
+## k-means with 2 centers
+ckm2 <- kmeans(cl.an.input[,2:25], centers = 2, nstart = 10)
+grpsKM2<- ckm2$cluster
+
+## k-means with 6 centers
+ckm6 <- kmeans(cl.an.input[,2:25], centers = 6, nstart = 10)
+grpsKM6<- ckm6$cluster
+```
+
+### Gaussian mixture model
+The Guassian mixture model makes the assumption that there is a statistical model behind the data. In this case, that is also partly the case, which makes it worthwhile to try it out.
+
+```{r 3.08_gmm_munic}
+
+###############################
+## Gaussian Mixture Models ####
+###############################
+mc <- Mclust(cl.an.input[,2:25]) # takes long time!
+table(mc$classification)
+```
+With this approach, 7 classes were built here.
+
+### DBSCAN
+The last approach is the "Density-Based Spatial Clustering of Applications with Noise".  Two characteristics distinguish this procedure: On the one hand, it is density-based, i.e. it sees points that are close to each other from a density-based perspective as belonging together. On the other hand, it classifies points that lie outside the recognised clusters as "noise" points. This means that the method can deal well with outliers by simply deleting them from the cluster analysis. In the case of the many municipalities, there are certainly outliers, which also makes the procedure make sense here.
+```{r 3.09_dbscan1_munic}
+
+# DBSCAN
+kNNdistplot(cl.an.input[,2:25], k = 26) ## -> k = dim + 1; eps value = 6 (sharp increase)
+abline(h=6, col = "red", lty=2)
+
+# setting parameters according to minPts = k and eps = sharp increase
+minPts=26 # = k
+eps=6 # cutting line above
+dbs <- dbscan(cl.an.input[,2:25], eps = eps, minPts = minPts)
+max(dbs$cluster) # 1
+```
+Only 1 cluster is present here, alternate values of minPts and eps to get another amount of clusters:
+
+```{r 3.10_dbscan2_munic}
+# Searching for better parameters:
+## For eps value (i), only values from 1 to 5 are tested, because higher values 
+## always lead to only one cluster at the end.
+
+# For minPts, the range from 2 to 5 is tested. 1 would lead to as many clusters 
+# as points are and for more than 5, only one cluster can be obtained. 
+
+for(i in (1:5)) {
+  
+  for(j in (2:5)) {
+
+    dbs <- dbscan(cl.an.input[,2:25], eps = i, minPts = j)
+
+    print(paste("minPts:", j, "; eps: ", i, "; nr. of clusters: ", max(dbs$cluster))) # 1
+    print(table(dbs$cluster))
+  }
+
+}
+```
+DBSCAN works very poorly here. Either practically all points are noise points or in a cluster, there is nothing in between.
+
+
+
+### Comparison of different approaches
+```{r 3.11_ca_comparison_munic, fig.height=3.5}
+
+## PLOT CLUSTER CALSSES ON PC 1 & 2 
+
+par(mfrow=c(2,2), mar=c(2,2,1.5,1))
+
+# Gaussian Mixture model
+plot(pc, pch = mc$classification, col = mc$classification, 
+     main="Gaussian Mixture Model (4 clusters)")
+legend("bottomright", legend = 1:4, pch = 1:4, col=1:4, bty="n")
+
+# K-means with 2 clusters
+plot(pc, pch = grpsKM2, col=grpsKM2, main="K-means (2 clusters)")
+legend("bottomright", legend = 1:2, pch = 1:2, col=1:2, bty="n")
+
+# K-means with 6 clusters
+plot(pc, pch = grpsKM6, col=grpsKM6, main="K-means (6 clusters)")
+legend("bottomright", legend = 1:6, pch = 1:6, col=1:5, bty="n")
+
+# Agglomerative clustering
+plot(pc, pch = grps, col=grps, main="Agglomerative clustering (18 clusters)")
+legend("bottomright", legend = 1:18, pch = 1:18, col=1:18, bty="n", cex=0.5)
+
+## SILHOUETTE PLOTS ##
+
+## Reduce number of data to see a sample of the whole dataset
+
+# classifications
+grps.ss <- grps[1:200]
+mc.ss <- mc$classification[1:200]
+grpsKM2.ss <- grpsKM2[1:200]
+grpsKM6.ss <- grpsKM6[1:200]
+
+# distance table
+dp.ss <- dist(cl.an.input[1:200,2:25]) ## Euclidean
+
+# Silhouette Plot from package "cluster"
+par(mfrow=c(1,2), mar=c(5,4,4,2))
+
+plot(silhouette(grps.ss, dp.ss, cex=0.8), main="Agglomerative clustering")
+plot(silhouette(grpsKM2.ss, dp.ss), main="k-means clustering (k=2)")
+plot(silhouette(grpsKM6.ss, dp.ss), main="k-means clustering (k=6)")
+plot(silhouette(mc.ss, dp.ss), main="Gaussian mixture model")
+
+
+## GROUPS REPRESENTING LANGUAGE REGIONS
+
+ca.aggl.lan <- data.frame(cls = grps, lang = cl.an.input[,1])
+table(ca.aggl.lan)
+
+ca.km2.lan <- data.frame(cls = grpsKM2, lang = cl.an.input[,1])
+table(ca.km2.lan)
+
+ca.km6.lan <- data.frame(cls = grpsKM6, lang = cl.an.input[,1])
+table(ca.km6.lan)
+
+ca.mc.lan <- data.frame(cls = mc$classification, lang = cl.an.input[,1])
+table(ca.mc.lan)
+
+
+
+```
+
+The outcome of the cluster analysis on the municipality level is, that it is not applicable, as the huge amount of data is too wide-spreaded.
+The best approach is reached with a k-means clustering with k=6. This can be written in a separate table to look at it graphically.
+
+
+### Exporting enriched data
+The generated clusters can now be written into a table together with the relevant influencing factors, which can then be used for the distribution of shares and graphical analysis with Tableau.
+
+```{r 3.12_ca_export_munic}
+# filtering out language (loading separate) and interaction terms
+d.share.clust <- d.share[,c("language", rownames(inf_factors)[c(2:17, 21, 24:29, 31)])]
+
+d.share.clust["k_cluster"] = grpsKM6
+
+d.share.clust["GA_share"] = d.share$GA_share
+d.share.clust["HTA_share"] = d.share$HTA_share
+d.share.clust["FNT_share"] = d.share$FNT_share
+
+d.share.clust["BFS_Nr"] = d.share$BFS_Nr
+d.share.clust["municipality"] = d.share$municipality
+d.share.clust["canton"] = d.share$canton
+d.share.clust["language"] = d.share$language
+
+### 1. look at values for influence factors per cluster for k=6
+### 2. print out values in a table for tableau
+### 3. write text new above!
+### 4. Same approach for cluster analysis canton
+```
+
+```{r 3.13_ca_writecsv_munic}
+write.csv(d.share.clust, file="influence_factors_with_CA.csv")
+```
+
+
+
+### Share distribution of GA, HTA and FNT for clusters
+```{r 3.14_share_distr_cl_munic}
+par(mfrow=c(2,2))
+boxplot(d.share.clust$GA_share ~ d.share.clust$k_cluster, col="blue", 
+        main = "GA share for k-means clusters", xlab="cluster (nr)", ylab="share")
+boxplot(d.share.clust$HTA_share ~ d.share.clust$k_cluster, col="green", 
+        main = "HTA share for k-means clusters", xlab="cluster (nr)", ylab="share")
+boxplot(d.share.clust$FNT_share ~ d.share.clust$k_cluster, col="purple", 
+        main = "FNT share for k-means clusters", xlab="cluster (nr)", ylab="share")
+```
+
+## Cluster analysis on the level of the cantons
+
+### Loading and normalizing data
+```{r 3.15_ca_data_loading1_cant}
+# Loading data
+d.cant.share <- read.csv("../Data/Cleaned/inf_fac_cant_share.csv")
+# print(colnames(d.cant.share))
+
+# select columns to normalize
+columns <- c("PT_dist_medium", "PT_time_medium", "PT_dist_big", "PT_time_big",
+             "str_dist_medium", "str_time_medium" ,"str_dist_big", "str_time_big",
+             "PT_fact_big", "PT_fact_medium", "single_share", "married_share", 
+             "widowed_share", "divorced_share", "GA_share", "HTA_share",
+             "FNT_share", "age0_20_share", "age20_40_share", "age40_60_share",
+             "age60._share", "birth_munic_share", "birth_cant_share", 
+             "birth_CH_share", "birth_notCH_share", "male_share", "female_share",
+             "resid_0_1y_share", "resid_1_5y_share", "resid_6_10y_share", 
+             "resid_10.y_share", "hh_1_share", "hh_2_share", "hh_3_5_share", 
+             "hh_6._share", "bus_stops_per_pop", "other_stops_per_pop", 
+             "train_stops_per_pop", "bus_stat_per_1000", "other_stat_per_1000",
+             "train_stat_per_1000", "comb_car_per_1000", "el_car_per_1000")
+
+# normalize data
+d.cant.norm.share <- d.cant.share
+d.cant.norm.share[columns] <- scale(d.cant.norm.share[columns])
+```
+
+```{r 3.16_ca_data_loading2_cant}
+cl.an.cant.input <- d.cant.norm.share[,c("age0_20_share", "age20_40_share",
+                      "birth_munic_share", "birth_cant_share", "birth_CH_share",
+                      "male_share", "resid_6_10y_share", "hh_1_share", "hh_2_share",
+                      "hh_3_5_share", "PT_time_medium", "PT_time_big", "train_stops_per_pop",
+                      "bus_stat_per_1000", "other_stat_per_1000", "comb_car_per_1000",
+                      "el_car_per_1000", "PT_fact_big", "single_share", "married_share",
+                      "other_stops_per_pop", "train_stat_per_1000", "PT_fact_medium",
+                      "bus_stops_per_pop")]
+
+# set row names according to canton labels
+row.names(cl.an.cant.input) <- d.cant.norm.share$canton
+```
+
+### Preparation of clustering
+```{r 3.17_ca_data_prep_cant}
+# distance matrix
+dp_cant <- dist(cl.an.cant.input)
+
+# Principal components
+PC.inf.fac.cant <- princomp(cl.an.cant.input) # without language
+summary(PC.inf.fac.cant, loadings = FALSE)
+
+## first 2 PC explain 46% of variance, 5 PC about 75% of variance
+
+plot(PC.inf.fac.cant, main="Principal components: Explained variance per PC")
+
+# write two first components out
+pc.cant <- PC.inf.fac.cant$scores[,1:2]
+
+```
+
+
+### Agglomerative Clustering
+
+Again here, first the approahc of agglomerative clustering. 
+```{r 3.18_aggl_clust1_cant}
+## Agglomerative clustering with complete linkage
+cl.cant.inf.fac <- hclust(dp_cant, method = "complete")
+
+## Show dendrogram
+plot(cl.cant.inf.fac)
+abline(h=9, col="red", lty=2)
+
+``` 
+Splitting at height 9 would result into 5 different clusters:
+
+```{r 3.19_aggl_clust2_cant}
+## Split into groups
+k = 5 # split at height 9 => 5 groups
+grps_cant <- cutree(cl.cant.inf.fac, k = k) 
+
+
+# plotting clustering result
+plot(pc.cant, pch = grps_cant, col=grps_cant, lwd=2, type="n") # add clustering result
+legend("topleft", legend = 1:k, pch = 1:k, col=1:k, bty="n")
+text(pc.cant[,1], pc.cant[,2], labels=d.cant.norm.share$canton, col=grps_cant)
+
+## Look at means of clusters / centroids
+aggregate(cl.an.cant.input, by=list(cluster=grps_cant), mean)
+```
+
+### K-means clustering
+
+Now the second approahc, the k-means clustering
+```{r 3.20_kmeans_cant, fig.height=3.5}
+#############
+## k-means ##
+#############
+
+## Choose number of clusters k with scree plot
+nr <- 12
+wss <- rep(0, nr)
+for (i in 1:nr) wss[i] <- sum(kmeans(cl.an.cant.input, centers = i, nstart = 20)$withinss)
+plot(1:nr, wss, type = "b", xlab = "Number of groups", ylab = "Within groups sum of squares") 
+
+## good spot at 4, test all from 2 to 10
+
+par(mfrow=c(1,2), mar=c(5,4,4,2), cex.main = 0.9, cex.axis=0.9)
+for(k in 2:10) {
+
+  ## k-means with 3-10 centers
+  ckm.cant <- kmeans(cl.an.cant.input, centers = k, nstart = 10)
+  grpsKM.cant <- ckm.cant$cluster
+  
+  ## Silhouette Plot
+  plot(silhouette(grpsKM.cant, dp_cant), 
+       main=paste("Silhouette plot with", k, "clusters"))
+  
+  ## visualize in PC 1 & 2
+  plot(pc.cant, pch = grpsKM.cant, col=grpsKM.cant, lwd=2, 
+       main=paste("k-means clustering with", k, "clusters"), type="n")
+  # legend("topleft", legend = 1:k, pch = 1:k, col=1:k, bty="n")
+  text(pc.cant[,1], pc.cant[,2], labels=d.cant.norm.share$canton, col=grpsKM.cant)
+  
+}
+
+### 4 clusters have the highest average silhouette width!
+
+# k-means cluster with k=4
+ckm4.cant <- kmeans(cl.an.cant.input, centers = 4, nstart = 10)
+grpsKM4.cant <- ckm4.cant$cluster
+
+```
+Somewhere around 4 clusters seems to be accurate. Going from the silhouette value, I will take 8 as value.
+
+### DBSCAN
+
+```{r 3.21_dbscan_cant}
+#############
+## DBSCAN  ##
+#############
+
+kNNdistplot(cl.an.cant.input, k = 15) ## -> eps value = 7.9 (sharp increase)
+abline(h=7.9, col = "red", lty=2)
+
+
+# setting parameters according to minPts = k and eps = sharp increase
+
+for(i in (1:7)) {
+  
+  for(j in (1:4)) {
+
+    dbs.cant <- dbscan(cl.an.cant.input, eps = i, minPts = j)
+
+    print(paste("minPts:", j, "; eps: ", i, "; nr. of clusters: ",
+                max(dbs.cant$cluster))) # 1
+  }
+
+}
+# minPts=1 and eps=5 lead to 7 clusters, eps=6 to 3 clusters. Test these!
+
+minPts=2
+eps=5
+
+dbs.cant <- dbscan(cl.an.cant.input, eps = eps, minPts = minPts)
+
+max(dbs.cant$cluster) # 7, look at values
+## plot on PC 1 & 2
+plot(pc.cant, pch = dbs.cant$cluster+1, col = dbs.cant$cluster+1, type="n")
+legend("topleft", legend = 0:max(dbs.cant$cluster), pch = 1:(max(dbs.cant$cluster)+1),
+       col = 1:(max(dbs.cant$cluster)+1))
+text(pc.cant[,1], pc.cant[,2], labels=d.cant.norm.share$canton, col=dbs.cant$cluster+1)
+
+table(dbs.cant$cluster)
+```
+It is always the case that either only one cluster is created, or individual cantons then form their own cluster. It can be concluded from this that no suitable cluster analysis is possible with DBSCAN.
+
+### Gaussian mixture model
+```{r 3.22_gmm_cant}
+## Gaussian Mixture Models
+
+mc.cant <- Mclust(cl.an.cant.input)
+table(mc.cant$classification)
+```
+This two classes built are not very useful.
+
+### Comparison of different approaches
+```{r 3.23_ca_comparison1_cant}
+par(mfrow=c(1,2), mar=c(2,2,1.5,1))
+
+# K-means with 4 clusters
+plot(pc.cant, pch = grpsKM4.cant, col=grpsKM4.cant, main="K-means (4 clusters)", type="n")
+legend("topright", legend = 1:4, pch = 1:4, col=1:4, bty="n", cex=0.8)
+text(pc.cant[,1], pc.cant[,2], labels=d.cant.norm.share$canton, col=grpsKM4.cant)
+
+# Agglomerative clustering
+plot(pc.cant, pch = grps_cant, col=grps_cant, 
+     main="Agglomerative clustering (5 clusters)", type="n") # add clustering result
+legend("topright", legend = 1:5, pch = 1:5, col=1:5, bty="n", cex=0.8)
+text(pc.cant[,1], pc.cant[,2], labels=d.cant.norm.share$canton, col=grps_cant)
+
+```
+```{r 3.24_ca_comparison2_cant}
+## Silhouette values ##
+
+# Silhouette plot from package "cluster"
+par(mfrow=c(1,2), mar=c(5,4,4,2))
+ 
+plot(silhouette(grpsKM4.cant, dp_cant), main="k-means Clustering (k=4)")
+plot(silhouette(grps_cant, dp_cant), main="Agglomerative clustering")
+```
+The k-means clustering looks slightly better, with no group having a negative average silhouette width!
+
+### Exporting enriched data
+
+The generated clusters can now be written into a table together with the relevant influencing factors, which
+can then be used for the distribution of shares and graphical analysis with Tableau.
+
+```{r 3.25_ca_export_cant}
+d.cant.share.clust <- d.cant.share
+d.cant.share.clust["k_cluster"] = grpsKM4.cant
+d.cant.share.clust["aggl_cluster"] = grps_cant
+
+# categorical data
+d.cant.share.clust$k_cluster<-as.factor(d.cant.share.clust$k_cluster)
+d.cant.share.clust$aggl_cluster<-as.factor(d.cant.share.clust$aggl_cluster)
+
+write.csv(d.cant.share.clust, file="cant_influence_factors_with_CA.csv")
+```
+
+### Share distribution of GA, HTA and FNT for clusters
+```{r 3.26_share_distr_aggCl_cant}
+par(mfrow=c(2,2))
+boxplot(d.cant.share.clust$GA_share ~ d.cant.share.clust$aggl_cluster, col="blue",
+        main = "GA share for agglom. clusters")
+boxplot(d.cant.share.clust$HTA_share ~ d.cant.share.clust$aggl_cluster, col="green",
+        main = "HTA share for agglom. clusters")
+boxplot(d.cant.share.clust$FNT_share ~ d.cant.share.clust$aggl_cluster, col="purple",
+        main = "FNT share for agglom. clusters")
+```
+
+
+```{r 3.27_share_distr_kmeans_cant}
+par(mfrow=c(2,2))
+boxplot(d.cant.share.clust$GA_share ~ d.cant.share.clust$k_cluster, col="blue", 
+        main = "GA share for k-means clusters")
+boxplot(d.cant.share.clust$HTA_share ~ d.cant.share.clust$k_cluster, col="green", 
+        main = "HTA share for k-means clusters")
+boxplot(d.cant.share.clust$FNT_share ~ d.cant.share.clust$k_cluster, col="purple",
+        main = "FNT share for k-means clusters")
+```
