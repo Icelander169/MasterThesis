@@ -2,6 +2,11 @@
 
 Repository with all data and scripts of master thesis ***Modelling of factors influencing the share of public transport tickets in Swiss municipalities including cluster analysis*** from Gabriel Peier 
 
+## Data storage
+- The personal Google Drive account from Gabriel Peier was used to store all data, scripts, outputs and visualizations. 
+- Due to storage limitations, the data could not be stored in the GitHub Repository
+- Access can be granted to the whole Master's Thesis Drive storage via: gabrielpeier@gmail.com (this can make the process easier)
+- If used in your own Drive Storage: Adapt all pathes accordingly in the script: All Data must be placed in the Data folder with the sub-pathes as described in the different chapters of this script, otherwise adapt it.
 
 ## ETL_Influence_factors.ipynb
 The script "ETL_Influence_factors.ipynb" is used to go through all the necessary steps in order to process the data according to the Master's thesis to establish a working database for the modelling of possible influence factors on Public Transport in Switzerland.
