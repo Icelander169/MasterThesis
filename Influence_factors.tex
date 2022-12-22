@@ -98,15 +98,15 @@
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
 \urlstyle{same} % disable monospaced font for URLs
 \hypersetup{
-  pdftitle={Linear model and cluster analysis of Influence factors and Public Transport subscriptions},
+  pdftitle={Appendix 2 - Linear model and cluster analysis of Influence factors and Public Transport subscriptions},
   pdfauthor={Gabriel Peier},
   hidelinks,
   pdfcreator={LaTeX via pandoc}}
 
-\title{Linear model and cluster analysis of Influence factors and Public
-Transport subscriptions}
+\title{Appendix 2 - Linear model and cluster analysis of Influence
+factors and Public Transport subscriptions}
 \author{Gabriel Peier}
-\date{2022-12-02}
+\date{2022-12-22}
 
 \begin{document}
 \maketitle
@@ -588,10 +588,9 @@ values above 1 and below 0 are possible, resulting in meaningless values
 concerning the share. Therefore, a logistic approach comes into play,
 which strictly forecasts values between 0 and 1. Although I do not have
 values for individuals with regard to the share and thus do not model a
-binary target variable, a \emph{multinomial logit model approach is
-described for aggregated data using group variable, which is in my case
-the municipality (Morais et al., 2016).} \emph{Quasibinomial glm
-fulfills the criteria here:}
+binary target variable, a generalized linear model with family binomial
+as adequate, as binomial data are per definition strictly between 0 and
+1.
 
 \hypertarget{binomial-vs.-quasibinomial}{%
 \paragraph{\texorpdfstring{Binomial
@@ -602,8 +601,7 @@ GLM. By default, ``binomial'' is used for a binomial model. In cases
 where the dispersion is too large or too small (over- and
 underdispersion), a ``quasibinomial'' model can be used, which has an
 additional dispersion parameter. This helps to ensure that significances
-can be detected. \emph{According to the literature, the model is used
-when \ldots{}} For these reasons, a quasibinomial model is also used
+can be detected. For these reasons, a quasibinomial model is also used
 here. The disadvantage here is that no stepwise procedure for paremeter
 elimination can be applied, as this is not permitted by the definition
 of the model.
@@ -2005,7 +2003,7 @@ be compared as the weight is the same for all herewith.
 ## inf_factors_estimates.csv", : attempt to set 'col.names' ignored
 \end{verbatim}
 
-All estimates can be plottes against each other to recognize
+All estimates can be plotted against each other to recognize
 similarities between GA, HTA and FNT:
 
 \begin{Shaded}
@@ -2052,7 +2050,7 @@ a high proportion of GA travelcards, half-fare cards are often also
 represented more frequently. On the other hand, it is the other way
 round with regard to the fare network tickets. The greater the
 proportion of GA or half-fare cards, the smaller the proportion of group
-season tickets tends to be. \emph{literature ?}
+season tickets tends to be.
 
 \hypertarget{parameter-selection-for-cluster-analysis}{%
 \subsection{Parameter selection for Cluster
@@ -2107,26 +2105,6 @@ share dataset:
 \hypertarget{cluster-analysis}{%
 \section{CLUSTER ANALYSIS}\label{cluster-analysis}}
 
-\emph{The best model of the different approaches will result in the
-highest accuracy and a corresponding list of parameters which are
-relevant and should be focussed on in the cluster analysis. Many,
-diverse communities can make it difficult to find easily separable
-clusters. Therefore, the first step of the cluster analysis is the
-reduction of the data to the cantonal level. For this purpose, a
-separate table must be created with a similar procedure as described in
-chapter 5.2.2, with the shares calculated on this new level of
-aggregation. Different options of cluster methods will be integrated in
-the analysis. I will use an agglomerative clustering model to start,
-which does not need a pre-defined number of clusters (Ward, 1963). This
-is an advantage, especially because it is hard to estimate in advance
-what number of groups will be useful at the end. Alternative models
-would be a k-means clustering (partitioning method) with a given number
-of clusters (MacQueen, 1967), a Generalized Mixture Model (GMM) which
-uses statistical models and is not based simply on a distance measure
-(Rasmussen, 1999), or even a density-based clustering like DBSCAN which
-assigns points to clusters based on densities in the data, returning
-also outliers (Ester et al., 1996).}
-
 The primary aim of cluster analysis is to identify spatial distribution
 patterns of certain characteristics with regard to relevant influencing
 factors. This requires the integration of the shares that were also used
@@ -2134,6 +2112,16 @@ in the modelling. Particularly in cluster analysis, it is also important
 to carry out a normalization so that all variables have the same
 influence. Therefore, the normalized ``share'' table is used for the
 cluster analysis.
+
+In this work, different approaches of cluster analysis are tried: On the
+one hand an agglomerative clustering model was used to start, which fits
+best an explorative approach to gain first insights (Ward, 1963).
+Further models were a k-means clustering (partitioning method) with a
+given number of clusters (MacQueen, 1967), a Generalized Mixture Model
+(GMM) which uses statistical models and is not based simply on a
+distance measure (Rasmussen, 1999), and the density-based clustering
+DBSCAN which assigns points to clusters based on densities in the data,
+returning also outliers (Ester et al., 1996).
 
 \hypertarget{cluster-analysis-on-the-level-of-the-municipality}{%
 \subsection{Cluster analysis on the level of the
@@ -2239,7 +2227,20 @@ groups.
 \NormalTok{k }\OtherTok{=} \DecValTok{18} \CommentTok{\# with 18 clusters, at least 2 big groups!}
 \NormalTok{grps }\OtherTok{\textless{}{-}} \FunctionTok{cutree}\NormalTok{(cl.inf.fac, }\AttributeTok{k =}\NormalTok{ k) }
 
+\FunctionTok{table}\NormalTok{(grps)}
+\end{Highlighting}
+\end{Shaded}
 
+\begin{verbatim}
+## grps
+##    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15   16 
+## 1437  499   30    2    9    4   41    5    8    2    2    4    6    3    1    3 
+##   17   18 
+##    1    1
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
 \DocumentationTok{\#\# Visualize result in PC 1 \& 2}
 \FunctionTok{plot}\NormalTok{(pc, }\AttributeTok{pch =}\NormalTok{ grps, }\AttributeTok{col=}\NormalTok{grps, }\AttributeTok{lwd=}\DecValTok{2}\NormalTok{, }\AttributeTok{main=}\StringTok{"Cluster result agglomerative clustering"}\NormalTok{) }
 \FunctionTok{legend}\NormalTok{(}\StringTok{"bottomright"}\NormalTok{, }\AttributeTok{legend =} \DecValTok{1}\SpecialCharTok{:}\NormalTok{k, }\AttributeTok{pch =} \DecValTok{1}\SpecialCharTok{:}\NormalTok{k, }\AttributeTok{col=}\DecValTok{1}\SpecialCharTok{:}\NormalTok{k, }\AttributeTok{bty=}\StringTok{"n"}\NormalTok{, }\AttributeTok{cex=}\FloatTok{0.85}\NormalTok{)}
@@ -2606,7 +2607,7 @@ approaches}\label{comparison-of-different-approaches}}
 \CommentTok{\# Agglomerative clustering}
 \FunctionTok{plot}\NormalTok{(pc, }\AttributeTok{pch =}\NormalTok{ grps, }\AttributeTok{col=}\NormalTok{grps, }\AttributeTok{main=}\StringTok{"Agglomerative clustering (18 clusters)"}\NormalTok{, }
        \AttributeTok{xlab=}\StringTok{"Principal Component 1"}\NormalTok{, }\AttributeTok{ylab=}\StringTok{"Principal Component 2"}\NormalTok{)}
-\FunctionTok{legend}\NormalTok{(}\StringTok{"bottomright"}\NormalTok{, }\AttributeTok{legend =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{18}\NormalTok{, }\AttributeTok{pch =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{18}\NormalTok{, }\AttributeTok{col=}\DecValTok{1}\SpecialCharTok{:}\DecValTok{18}\NormalTok{, }\AttributeTok{bty=}\StringTok{"n"}\NormalTok{, }\AttributeTok{cex=}\FloatTok{0.7}\NormalTok{)}
+\FunctionTok{legend}\NormalTok{(}\StringTok{"bottomright"}\NormalTok{, }\AttributeTok{legend =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{18}\NormalTok{, }\AttributeTok{pch =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{18}\NormalTok{, }\AttributeTok{col=}\DecValTok{1}\SpecialCharTok{:}\DecValTok{18}\NormalTok{, }\AttributeTok{bty=}\StringTok{"n"}\NormalTok{, }\AttributeTok{cex=}\FloatTok{0.56}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
@@ -2630,6 +2631,7 @@ approaches}\label{comparison-of-different-approaches}}
 \CommentTok{\# Silhouette Plot from package "cluster"}
 \FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow=}\FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{,}\DecValTok{2}\NormalTok{), }\AttributeTok{mar=}\FunctionTok{c}\NormalTok{(}\DecValTok{5}\NormalTok{,}\DecValTok{4}\NormalTok{,}\DecValTok{4}\NormalTok{,}\DecValTok{2}\NormalTok{))}
 
+
 \FunctionTok{plot}\NormalTok{(}\FunctionTok{silhouette}\NormalTok{(grps.ss, dp.ss, }\AttributeTok{cex=}\FloatTok{0.8}\NormalTok{), }\AttributeTok{main=}\StringTok{"Agglomerative clustering"}\NormalTok{)}
 \FunctionTok{plot}\NormalTok{(}\FunctionTok{silhouette}\NormalTok{(grpsKM2.ss, dp.ss), }\AttributeTok{main=}\StringTok{"k{-}means clustering (k=2)"}\NormalTok{)}
 \end{Highlighting}
@@ -2645,6 +2647,56 @@ approaches}\label{comparison-of-different-approaches}}
 \end{Shaded}
 
 \includegraphics{Influence_factors_files/figure-latex/3.11_ca_comparison_munic-3.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{table}\NormalTok{(grps)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## grps
+##    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15   16 
+## 1437  499   30    2    9    4   41    5    8    2    2    4    6    3    1    3 
+##   17   18 
+##    1    1
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{table}\NormalTok{(mc}\SpecialCharTok{$}\NormalTok{classification)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+##   1   2   3   4   5   6   7 
+## 307 166 611 459 293 143  79
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{table}\NormalTok{(grpsKM2)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## grpsKM2
+##    1    2 
+##  457 1601
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{table}\NormalTok{(grpsKM6)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## grpsKM6
+##   1   2   3   4   5   6 
+##  10 714 211 435 443 245
+\end{verbatim}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -2777,6 +2829,16 @@ approaches}\label{comparison-of-different-approaches}}
 ##   7  61   9   5   4
 \end{verbatim}
 
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{par}\NormalTok{(}\AttributeTok{mar=}\FunctionTok{c}\NormalTok{(}\FloatTok{5.1}\NormalTok{, }\FloatTok{4.1}\NormalTok{, }\FloatTok{4.1}\NormalTok{, }\FloatTok{8.1}\NormalTok{), }\AttributeTok{xpd=}\ConstantTok{TRUE}\NormalTok{)}
+\FunctionTok{plot}\NormalTok{(}\FunctionTok{table}\NormalTok{(ca.km6.lan), }\AttributeTok{col=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\SpecialCharTok{:}\DecValTok{5}\NormalTok{), }\AttributeTok{main=}\StringTok{"language distribution on clusters"}\NormalTok{, }\AttributeTok{xlab=}\StringTok{"cluster nr."}\NormalTok{, }\AttributeTok{ylab=}\StringTok{"language"}\NormalTok{)}
+\FunctionTok{legend}\NormalTok{(}\StringTok{"topright"}\NormalTok{, }\AttributeTok{inset=}\FunctionTok{c}\NormalTok{(}\SpecialCharTok{{-}}\FloatTok{0.2}\NormalTok{, }\DecValTok{0}\NormalTok{), }\AttributeTok{legend =} \FunctionTok{c}\NormalTok{(}\StringTok{"German"}\NormalTok{, }\StringTok{"French"}\NormalTok{, }\StringTok{"Italian"}\NormalTok{, }\StringTok{"Rumantsch"}\NormalTok{), }\AttributeTok{col=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\SpecialCharTok{:}\DecValTok{5}\NormalTok{), }\AttributeTok{pch=}\DecValTok{15}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Influence_factors_files/figure-latex/3.11_ca_comparison_munic-4.pdf}
+
 The outcome of the cluster analysis on the municipality level is, that
 it is not applicable, as the huge amount of data is too wide-spreaded.
 The best approach is reached with a k-means clustering with k=6. This
@@ -2804,11 +2866,6 @@ distribution of shares and graphical analysis with Tableau.
 \NormalTok{d.share.clust[}\StringTok{"municipality"}\NormalTok{] }\OtherTok{=}\NormalTok{ d.share}\SpecialCharTok{$}\NormalTok{municipality}
 \NormalTok{d.share.clust[}\StringTok{"canton"}\NormalTok{] }\OtherTok{=}\NormalTok{ d.share}\SpecialCharTok{$}\NormalTok{canton}
 \NormalTok{d.share.clust[}\StringTok{"language"}\NormalTok{] }\OtherTok{=}\NormalTok{ d.share}\SpecialCharTok{$}\NormalTok{language}
-
-\DocumentationTok{\#\#\# 1. look at values for influence factors per cluster for k=6}
-\DocumentationTok{\#\#\# 2. print out values in a table for tableau}
-\DocumentationTok{\#\#\# 3. write text new above!}
-\DocumentationTok{\#\#\# 4. Same approach for cluster analysis canton}
 \end{Highlighting}
 \end{Shaded}
 
