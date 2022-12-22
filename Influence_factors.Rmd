@@ -2,7 +2,7 @@
 title: Linear model and cluster analysis of Influence factors and Public Transport
   subscriptions
 author: "Gabriel Peier"
-date: '2022-11-25'
+date: '2022-12-02'
 output:
   pdf_document:
     number_sections: TRUE
@@ -46,8 +46,10 @@ library(GGally)                # for ggpairs plot
 ## Loading data
 ```{r 1.01_dataloading}
 getwd()
-d.share <- read.csv(("../Data/Cleaned/inf_fac_share.csv"))
-d.count <- read.csv(("../Data/Cleaned/inf_fac_count.csv")) 
+
+d.share <- read.csv(("../Data/3_Output/inf_fac_share.csv"))
+d.count <- read.csv(("../Data/3_Output/inf_fac_count.csv"))
+
 ```
 
 
@@ -264,7 +266,7 @@ Before starting with the models, the amount of possible influence factors must b
 
 ```{r 2.01_corr_charts, fig.height=3.5}
 chart.Correlation(d.norm.count[,c(27:34, 44:45)], # +1 due to 0-values (log(0) = -Inf)
-                  histogram=TRUE) # adding histograms to the plot
+                  histogram=FALSE) # adding histograms to the plot
 ```
 Many correlation values are strongly significant, the collinearity is huge in these cases! There has to be done something here. The distance and time data are always strongly correlating for big and medium cities, so I will focus only on time data. Within the same city category, PT and str data are additionnally also correlating highly, so only the PT data is used.
 The PT factor will be used as well, the correlation values are not that high, even if one of the inputs for the calculation are the PT_time_big and PT_time_medium tables.
@@ -466,6 +468,8 @@ glm.share.05 <- glm(GA_share ~  age0_20 + birth_munic + birth_cant + birth_CH + 
     el_car_1000 + language + PT_fact_big + PT_fact_big:PT_fact_medium + 
     PT_time_medium:PT_time_big, family = quasibinomial, data = d.norm.share)
 
+
+
 summary(glm.share.05)
 ```
 At least, all parameters left appear to be highly significant here. The model evaluation in a later section will show, how this model performs.
@@ -527,7 +531,7 @@ lm.count.HTA <- lm(HTA_BFS ~ . -GA_BFS - fn_tck_BFS
 ### Stepwise selection of parameters:
 lm.count.HTA2 <- MASS::stepAIC(lm.count.HTA, direction = "both", trace = FALSE)
 summary(lm.count.HTA2)
-
+summary(lm.count.HTA)
 ```
 
 The stepAIC function gives me now a suggested formula, what can be used for a further try of the GLM.
@@ -1011,6 +1015,7 @@ The filled table looks as the following:
 
 ```{r 2.27_final_model_eval_table}
 round(model_evaluation, digits=2) 
+write.csv(model_evaluation, file="../Data/4_model_output/model_evaluation.csv")
 ```
 
 
@@ -1282,7 +1287,8 @@ inf_factors <- t(inf_factors)
 colnames(inf_factors) <- c("GA_share", "HTA_share", "FNT_share")
 
 ### Write csv
-write.csv(inf_factors, file="inf_factors.csv")
+write.csv(inf_factors, file="../Data/4_Model_output/inf_factors_estimates.csv",
+          col.names=TRUE, row.names=TRUE)
 
 ```
 
@@ -1384,6 +1390,7 @@ Out of the dendrogram, it is hard to say how many clusters would be accurate. Bu
 k = 18 # with 18 clusters, at least 2 big groups!
 grps <- cutree(cl.inf.fac, k = k) 
 
+table(grps)
 
 ## Visualize result in PC 1 & 2
 plot(pc, pch = grps, col=grps, lwd=2, main="Cluster result agglomerative clustering") 
@@ -1501,24 +1508,28 @@ DBSCAN works very poorly here. Either practically all points are noise points or
 
 ## PLOT CLUSTER CALSSES ON PC 1 & 2 
 
-par(mfrow=c(2,2), mar=c(2,2,1.5,1))
+par(mfrow=c(2,2), mar=c(4,4,2.5,1))
 
 # Gaussian Mixture model
 plot(pc, pch = mc$classification, col = mc$classification, 
-     main="Gaussian Mixture Model (4 clusters)")
-legend("bottomright", legend = 1:4, pch = 1:4, col=1:4, bty="n")
+     main="Gaussian Mixture Model (7 clusters)", 
+       xlab="Principal Component 1", ylab="Principal Component 2")
+legend("bottomright", legend = 1:7, pch = 1:7, col=1:7, bty="n")
 
 # K-means with 2 clusters
-plot(pc, pch = grpsKM2, col=grpsKM2, main="K-means (2 clusters)")
+plot(pc, pch = grpsKM2, col=grpsKM2, main="K-means (2 clusters)", 
+       xlab="Principal Component 1", ylab="Principal Component 2")
 legend("bottomright", legend = 1:2, pch = 1:2, col=1:2, bty="n")
 
 # K-means with 6 clusters
-plot(pc, pch = grpsKM6, col=grpsKM6, main="K-means (6 clusters)")
-legend("bottomright", legend = 1:6, pch = 1:6, col=1:5, bty="n")
+plot(pc, pch = grpsKM6, col=grpsKM6, main="K-means (6 clusters)", 
+       xlab="Principal Component 1", ylab="Principal Component 2")
+legend("bottomright", legend = 1:6, pch = 1:6, col=1:6, bty="n")
 
 # Agglomerative clustering
-plot(pc, pch = grps, col=grps, main="Agglomerative clustering (18 clusters)")
-legend("bottomright", legend = 1:18, pch = 1:18, col=1:18, bty="n", cex=0.5)
+plot(pc, pch = grps, col=grps, main="Agglomerative clustering (18 clusters)", 
+       xlab="Principal Component 1", ylab="Principal Component 2")
+legend("bottomright", legend = 1:18, pch = 1:18, col=1:18, bty="n", cex=0.56)
 
 ## SILHOUETTE PLOTS ##
 
@@ -1536,12 +1547,23 @@ dp.ss <- dist(cl.an.input[1:200,2:25]) ## Euclidean
 # Silhouette Plot from package "cluster"
 par(mfrow=c(1,2), mar=c(5,4,4,2))
 
+
 plot(silhouette(grps.ss, dp.ss, cex=0.8), main="Agglomerative clustering")
 plot(silhouette(grpsKM2.ss, dp.ss), main="k-means clustering (k=2)")
 plot(silhouette(grpsKM6.ss, dp.ss), main="k-means clustering (k=6)")
 plot(silhouette(mc.ss, dp.ss), main="Gaussian mixture model")
 
+table(grps)
+table(mc$classification)
+table(grpsKM2)
+table(grpsKM6)
 
+summary(silhouette(grps, dp))[1]
+summary(silhouette(grpsKM2, dp))[1]
+summary(silhouette(grpsKM6, dp))[1]
+summary(silhouette(mc$classification, dp))[1]
+
+  
 ## GROUPS REPRESENTING LANGUAGE REGIONS
 
 ca.aggl.lan <- data.frame(cls = grps, lang = cl.an.input[,1])
@@ -1555,8 +1577,9 @@ table(ca.km6.lan)
 
 ca.mc.lan <- data.frame(cls = mc$classification, lang = cl.an.input[,1])
 table(ca.mc.lan)
-
-
+par(mar=c(5.1, 4.1, 4.1, 8.1), xpd=TRUE)
+plot(table(ca.km6.lan), col=c(2:5), main="language distribution on clusters", xlab="cluster nr.", ylab="language")
+legend("topright", inset=c(-0.2, 0), legend = c("German", "French", "Italian", "Rumantsch"), col=c(2:5), pch=15)
 
 ```
 
@@ -1582,14 +1605,10 @@ d.share.clust["municipality"] = d.share$municipality
 d.share.clust["canton"] = d.share$canton
 d.share.clust["language"] = d.share$language
 
-### 1. look at values for influence factors per cluster for k=6
-### 2. print out values in a table for tableau
-### 3. write text new above!
-### 4. Same approach for cluster analysis canton
 ```
 
 ```{r 3.13_ca_writecsv_munic}
-write.csv(d.share.clust, file="influence_factors_with_CA.csv")
+write.csv(d.share.clust, file="../Data/4_Model_output/influence_factors_with_CA.csv")
 ```
 
 
@@ -1610,7 +1629,7 @@ boxplot(d.share.clust$FNT_share ~ d.share.clust$k_cluster, col="purple",
 ### Loading and normalizing data
 ```{r 3.15_ca_data_loading1_cant}
 # Loading data
-d.cant.share <- read.csv("../Data/Cleaned/inf_fac_cant_share.csv")
+d.cant.share <- read.csv("../Data/3_Output/inf_fac_cant_share.csv")
 # print(colnames(d.cant.share))
 
 # select columns to normalize
@@ -1830,7 +1849,7 @@ d.cant.share.clust["aggl_cluster"] = grps_cant
 d.cant.share.clust$k_cluster<-as.factor(d.cant.share.clust$k_cluster)
 d.cant.share.clust$aggl_cluster<-as.factor(d.cant.share.clust$aggl_cluster)
 
-write.csv(d.cant.share.clust, file="cant_influence_factors_with_CA.csv")
+write.csv(d.cant.share.clust, file="../Data/4_Model_output/cant_influence_factors_with_CA.csv")
 ```
 
 ### Share distribution of GA, HTA and FNT for clusters
