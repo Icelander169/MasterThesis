@@ -28,3 +28,6 @@ All data are can be accessible free of charge and are found here (with name acco
 
 ## Influence_factors.Rmd
 This script uses the above created dataset and calculates possible influence factors on the share of Public Transport Subscriptions via a Generalized Linear Model with family binomial and quasibinomial. See the script for detailled descriptions.
+
+## Visualizations
+Provided Tableau workbooks are found in the Drive Storage under Data / 6_Visualization
