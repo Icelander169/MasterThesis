@@ -106,7 +106,7 @@
 \title{Linear model and cluster analysis of Influence factors and Public
 Transport subscriptions}
 \author{Gabriel Peier}
-\date{2022-11-25}
+\date{2022-12-02}
 
 \begin{document}
 \maketitle
@@ -161,8 +161,8 @@ the paper. I did use the following packages:
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{d.share }\OtherTok{\textless{}{-}} \FunctionTok{read.csv}\NormalTok{((}\StringTok{"../Data/Cleaned/inf\_fac\_share.csv"}\NormalTok{))}
-\NormalTok{d.count }\OtherTok{\textless{}{-}} \FunctionTok{read.csv}\NormalTok{((}\StringTok{"../Data/Cleaned/inf\_fac\_count.csv"}\NormalTok{)) }
+\NormalTok{d.share }\OtherTok{\textless{}{-}} \FunctionTok{read.csv}\NormalTok{((}\StringTok{"../Data/3\_Output/inf\_fac\_share.csv"}\NormalTok{))}
+\NormalTok{d.count }\OtherTok{\textless{}{-}} \FunctionTok{read.csv}\NormalTok{((}\StringTok{"../Data/3\_Output/inf\_fac\_count.csv"}\NormalTok{))}
 \end{Highlighting}
 \end{Shaded}
 
@@ -446,7 +446,7 @@ tables:}\label{street-and-pt-distance-time-tables}}
 \begin{Shaded}
 \begin{Highlighting}[]
 \FunctionTok{chart.Correlation}\NormalTok{(d.norm.count[,}\FunctionTok{c}\NormalTok{(}\DecValTok{27}\SpecialCharTok{:}\DecValTok{34}\NormalTok{, }\DecValTok{44}\SpecialCharTok{:}\DecValTok{45}\NormalTok{)], }\CommentTok{\# +1 due to 0{-}values (log(0) = {-}Inf)}
-                  \AttributeTok{histogram=}\ConstantTok{TRUE}\NormalTok{) }\CommentTok{\# adding histograms to the plot}
+                  \AttributeTok{histogram=}\ConstantTok{FALSE}\NormalTok{) }\CommentTok{\# adding histograms to the plot}
 \end{Highlighting}
 \end{Shaded}
 
@@ -1015,6 +1015,8 @@ coefficient estimate is far away from 0
 \NormalTok{    el\_car\_1000 }\SpecialCharTok{+}\NormalTok{ language }\SpecialCharTok{+}\NormalTok{ PT\_fact\_big }\SpecialCharTok{+}\NormalTok{ PT\_fact\_big}\SpecialCharTok{:}\NormalTok{PT\_fact\_medium }\SpecialCharTok{+} 
 \NormalTok{    PT\_time\_medium}\SpecialCharTok{:}\NormalTok{PT\_time\_big, }\AttributeTok{family =}\NormalTok{ quasibinomial, }\AttributeTok{data =}\NormalTok{ d.norm.share)}
 
+
+
 \FunctionTok{summary}\NormalTok{(glm.share}\FloatTok{.05}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
@@ -1238,6 +1240,74 @@ Now the linear model will be identified:
 ## Residual standard error: 0.2116 on 1618 degrees of freedom
 ## Multiple R-squared:  0.975,  Adjusted R-squared:  0.9746 
 ## F-statistic:  2178 on 29 and 1618 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{summary}\NormalTok{(lm.count.HTA)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = HTA_BFS ~ . - GA_BFS - fn_tck_BFS + bus_count:bus_stat + 
+##     train_count:train_stat + other_count:other_stat + PT_fact_big:PT_fact_medium + 
+##     PT_time_big:PT_fact_big + PT_time_medium:PT_time_big + PT_fact_medium:PT_time_medium, 
+##     data = d.norm.count.train)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -1.31066 -0.11801  0.01298  0.13069  1.08237 
+## 
+## Coefficients:
+##                                Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)                    2.161818   0.761934   2.837 0.004607 ** 
+## pop_count_BFS                 -0.414047   0.421105  -0.983 0.325638    
+## single_count_BFS               1.154981   0.206262   5.600 2.52e-08 ***
+## married_count_BFS              0.671754   0.196984   3.410 0.000665 ***
+## widowed_count_BFS             -0.048339   0.038405  -1.259 0.208329    
+## age0_20cnt                    -0.350760   0.057910  -6.057 1.72e-09 ***
+## age20_40cnt                   -0.551971   0.063292  -8.721  < 2e-16 ***
+## age40_60cnt                   -0.125115   0.087017  -1.438 0.150677    
+## birth_munic_cnt                0.012419   0.006818   1.821 0.068721 .  
+## birth_cant_cnt                 0.043698   0.015796   2.766 0.005733 ** 
+## birth_CH_cnt                   0.013782   0.015146   0.910 0.362963    
+## male_cnt                      -0.389611   0.149301  -2.610 0.009150 ** 
+## resid_0_1y_cnt                -0.014630   0.021122  -0.693 0.488629    
+## resid_1_5y_cnt                 0.064947   0.031857   2.039 0.041640 *  
+## resid_6_10y_cnt                0.029652   0.025505   1.163 0.245177    
+## hh_1_cnt                       0.117742   0.039765   2.961 0.003112 ** 
+## hh_2_cnt                       0.564346   0.059097   9.550  < 2e-16 ***
+## hh_3_5_cnt                     0.524530   0.086604   6.057 1.73e-09 ***
+## PT_time_medium                -0.238336   0.128077  -1.861 0.062942 .  
+## PT_time_big                    0.027718   0.118325   0.234 0.814818    
+## bus_count                     -0.011591   0.003523  -3.290 0.001023 ** 
+## other_count                    0.019034   0.005280   3.605 0.000322 ***
+## train_count                   -0.001481   0.003007  -0.493 0.622309    
+## bus_stat                       0.055386   0.037958   1.459 0.144722    
+## other_stat                     0.016396   0.082979   0.198 0.843393    
+## train_stat                     0.092564   0.112877   0.820 0.412315    
+## Combustion                    -0.456099   0.045058 -10.122  < 2e-16 ***
+## Electric                       0.129709   0.016430   7.894 5.35e-15 ***
+## languagefr                    -0.392746   0.019077 -20.587  < 2e-16 ***
+## languageit                    -1.026481   0.040856 -25.124  < 2e-16 ***
+## languagerm                    -0.070804   0.039630  -1.787 0.074187 .  
+## PT_fact_big                    0.376991   0.217165   1.736 0.082761 .  
+## PT_fact_medium                -0.002438   0.169482  -0.014 0.988525    
+## bus_count:bus_stat            -0.001520   0.002641  -0.575 0.565065    
+## train_count:train_stat        -0.003458   0.008783  -0.394 0.693853    
+## other_count:other_stat        -0.003252   0.008559  -0.380 0.704048    
+## PT_fact_big:PT_fact_medium     0.152868   0.047472   3.220 0.001307 ** 
+## PT_time_big:PT_fact_big       -0.193392   0.046631  -4.147 3.54e-05 ***
+## PT_time_medium:PT_time_big     0.043471   0.024647   1.764 0.077970 .  
+## PT_time_medium:PT_fact_medium -0.035759   0.042223  -0.847 0.397173    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.2119 on 1608 degrees of freedom
+## Multiple R-squared:  0.9751, Adjusted R-squared:  0.9745 
+## F-statistic:  1614 on 39 and 1608 DF,  p-value: < 2.2e-16
 \end{verbatim}
 
 The stepAIC function gives me now a suggested formula, what can be used
@@ -1813,6 +1883,12 @@ The filled table looks as the following:
 ## FNT_LM_02_cnt    1379.88     -0.39   2352.50     0.70       32            0.64
 \end{verbatim}
 
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{write.csv}\NormalTok{(model\_evaluation, }\AttributeTok{file=}\StringTok{"../Data/4\_model\_output/model\_evaluation.csv"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
 Basically, it can be seen that the linear models have a higher accuracy,
 measured by the R-squared value. This is not surprising, however, since
 in the count data the population size plays a role in most variables
@@ -1919,9 +1995,15 @@ be compared as the weight is the same for all herewith.
 \FunctionTok{colnames}\NormalTok{(inf\_factors) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"GA\_share"}\NormalTok{, }\StringTok{"HTA\_share"}\NormalTok{, }\StringTok{"FNT\_share"}\NormalTok{)}
 
 \DocumentationTok{\#\#\# Write csv}
-\FunctionTok{write.csv}\NormalTok{(inf\_factors, }\AttributeTok{file=}\StringTok{"inf\_factors.csv"}\NormalTok{)}
+\FunctionTok{write.csv}\NormalTok{(inf\_factors, }\AttributeTok{file=}\StringTok{"../Data/4\_Model\_output/inf\_factors\_estimates.csv"}\NormalTok{,}
+          \AttributeTok{col.names=}\ConstantTok{TRUE}\NormalTok{, }\AttributeTok{row.names=}\ConstantTok{TRUE}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
+
+\begin{verbatim}
+## Warning in write.csv(inf_factors, file = "../Data/4_Model_output/
+## inf_factors_estimates.csv", : attempt to set 'col.names' ignored
+\end{verbatim}
 
 All estimates can be plottes against each other to recognize
 similarities between GA, HTA and FNT:
@@ -2503,24 +2585,28 @@ approaches}\label{comparison-of-different-approaches}}
 \begin{Highlighting}[]
 \DocumentationTok{\#\# PLOT CLUSTER CALSSES ON PC 1 \& 2 }
 
-\FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{), }\AttributeTok{mar=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{,}\FloatTok{1.5}\NormalTok{,}\DecValTok{1}\NormalTok{))}
+\FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{), }\AttributeTok{mar=}\FunctionTok{c}\NormalTok{(}\DecValTok{4}\NormalTok{,}\DecValTok{4}\NormalTok{,}\FloatTok{2.5}\NormalTok{,}\DecValTok{1}\NormalTok{))}
 
 \CommentTok{\# Gaussian Mixture model}
 \FunctionTok{plot}\NormalTok{(pc, }\AttributeTok{pch =}\NormalTok{ mc}\SpecialCharTok{$}\NormalTok{classification, }\AttributeTok{col =}\NormalTok{ mc}\SpecialCharTok{$}\NormalTok{classification, }
-     \AttributeTok{main=}\StringTok{"Gaussian Mixture Model (4 clusters)"}\NormalTok{)}
-\FunctionTok{legend}\NormalTok{(}\StringTok{"bottomright"}\NormalTok{, }\AttributeTok{legend =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{4}\NormalTok{, }\AttributeTok{pch =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{4}\NormalTok{, }\AttributeTok{col=}\DecValTok{1}\SpecialCharTok{:}\DecValTok{4}\NormalTok{, }\AttributeTok{bty=}\StringTok{"n"}\NormalTok{)}
+     \AttributeTok{main=}\StringTok{"Gaussian Mixture Model (7 clusters)"}\NormalTok{, }
+       \AttributeTok{xlab=}\StringTok{"Principal Component 1"}\NormalTok{, }\AttributeTok{ylab=}\StringTok{"Principal Component 2"}\NormalTok{)}
+\FunctionTok{legend}\NormalTok{(}\StringTok{"bottomright"}\NormalTok{, }\AttributeTok{legend =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{7}\NormalTok{, }\AttributeTok{pch =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{7}\NormalTok{, }\AttributeTok{col=}\DecValTok{1}\SpecialCharTok{:}\DecValTok{7}\NormalTok{, }\AttributeTok{bty=}\StringTok{"n"}\NormalTok{)}
 
 \CommentTok{\# K{-}means with 2 clusters}
-\FunctionTok{plot}\NormalTok{(pc, }\AttributeTok{pch =}\NormalTok{ grpsKM2, }\AttributeTok{col=}\NormalTok{grpsKM2, }\AttributeTok{main=}\StringTok{"K{-}means (2 clusters)"}\NormalTok{)}
+\FunctionTok{plot}\NormalTok{(pc, }\AttributeTok{pch =}\NormalTok{ grpsKM2, }\AttributeTok{col=}\NormalTok{grpsKM2, }\AttributeTok{main=}\StringTok{"K{-}means (2 clusters)"}\NormalTok{, }
+       \AttributeTok{xlab=}\StringTok{"Principal Component 1"}\NormalTok{, }\AttributeTok{ylab=}\StringTok{"Principal Component 2"}\NormalTok{)}
 \FunctionTok{legend}\NormalTok{(}\StringTok{"bottomright"}\NormalTok{, }\AttributeTok{legend =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{2}\NormalTok{, }\AttributeTok{pch =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{2}\NormalTok{, }\AttributeTok{col=}\DecValTok{1}\SpecialCharTok{:}\DecValTok{2}\NormalTok{, }\AttributeTok{bty=}\StringTok{"n"}\NormalTok{)}
 
 \CommentTok{\# K{-}means with 6 clusters}
-\FunctionTok{plot}\NormalTok{(pc, }\AttributeTok{pch =}\NormalTok{ grpsKM6, }\AttributeTok{col=}\NormalTok{grpsKM6, }\AttributeTok{main=}\StringTok{"K{-}means (6 clusters)"}\NormalTok{)}
-\FunctionTok{legend}\NormalTok{(}\StringTok{"bottomright"}\NormalTok{, }\AttributeTok{legend =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{6}\NormalTok{, }\AttributeTok{pch =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{6}\NormalTok{, }\AttributeTok{col=}\DecValTok{1}\SpecialCharTok{:}\DecValTok{5}\NormalTok{, }\AttributeTok{bty=}\StringTok{"n"}\NormalTok{)}
+\FunctionTok{plot}\NormalTok{(pc, }\AttributeTok{pch =}\NormalTok{ grpsKM6, }\AttributeTok{col=}\NormalTok{grpsKM6, }\AttributeTok{main=}\StringTok{"K{-}means (6 clusters)"}\NormalTok{, }
+       \AttributeTok{xlab=}\StringTok{"Principal Component 1"}\NormalTok{, }\AttributeTok{ylab=}\StringTok{"Principal Component 2"}\NormalTok{)}
+\FunctionTok{legend}\NormalTok{(}\StringTok{"bottomright"}\NormalTok{, }\AttributeTok{legend =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{6}\NormalTok{, }\AttributeTok{pch =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{6}\NormalTok{, }\AttributeTok{col=}\DecValTok{1}\SpecialCharTok{:}\DecValTok{6}\NormalTok{, }\AttributeTok{bty=}\StringTok{"n"}\NormalTok{)}
 
 \CommentTok{\# Agglomerative clustering}
-\FunctionTok{plot}\NormalTok{(pc, }\AttributeTok{pch =}\NormalTok{ grps, }\AttributeTok{col=}\NormalTok{grps, }\AttributeTok{main=}\StringTok{"Agglomerative clustering (18 clusters)"}\NormalTok{)}
-\FunctionTok{legend}\NormalTok{(}\StringTok{"bottomright"}\NormalTok{, }\AttributeTok{legend =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{18}\NormalTok{, }\AttributeTok{pch =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{18}\NormalTok{, }\AttributeTok{col=}\DecValTok{1}\SpecialCharTok{:}\DecValTok{18}\NormalTok{, }\AttributeTok{bty=}\StringTok{"n"}\NormalTok{, }\AttributeTok{cex=}\FloatTok{0.5}\NormalTok{)}
+\FunctionTok{plot}\NormalTok{(pc, }\AttributeTok{pch =}\NormalTok{ grps, }\AttributeTok{col=}\NormalTok{grps, }\AttributeTok{main=}\StringTok{"Agglomerative clustering (18 clusters)"}\NormalTok{, }
+       \AttributeTok{xlab=}\StringTok{"Principal Component 1"}\NormalTok{, }\AttributeTok{ylab=}\StringTok{"Principal Component 2"}\NormalTok{)}
+\FunctionTok{legend}\NormalTok{(}\StringTok{"bottomright"}\NormalTok{, }\AttributeTok{legend =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{18}\NormalTok{, }\AttributeTok{pch =} \DecValTok{1}\SpecialCharTok{:}\DecValTok{18}\NormalTok{, }\AttributeTok{col=}\DecValTok{1}\SpecialCharTok{:}\DecValTok{18}\NormalTok{, }\AttributeTok{bty=}\StringTok{"n"}\NormalTok{, }\AttributeTok{cex=}\FloatTok{0.7}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
@@ -2559,6 +2645,54 @@ approaches}\label{comparison-of-different-approaches}}
 \end{Shaded}
 
 \includegraphics{Influence_factors_files/figure-latex/3.11_ca_comparison_munic-3.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{summary}\NormalTok{(}\FunctionTok{silhouette}\NormalTok{(grps, dp))[}\DecValTok{1}\NormalTok{]}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## $si.summary
+##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+## -0.2762  0.0212  0.1486  0.1118  0.2064  0.5811
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{summary}\NormalTok{(}\FunctionTok{silhouette}\NormalTok{(grpsKM2, dp))[}\DecValTok{1}\NormalTok{]}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## $si.summary
+##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+## -0.2325  0.1842  0.2920  0.2258  0.3429  0.4392
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{summary}\NormalTok{(}\FunctionTok{silhouette}\NormalTok{(grpsKM6, dp))[}\DecValTok{1}\NormalTok{]}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## $si.summary
+##     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+## -0.29569  0.02617  0.09428  0.08483  0.15706  0.39877
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{summary}\NormalTok{(}\FunctionTok{silhouette}\NormalTok{(mc}\SpecialCharTok{$}\NormalTok{classification, dp))[}\DecValTok{1}\NormalTok{]}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## $si.summary
+##      Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+## -0.613780 -0.098573  0.007345 -0.012914  0.089425  0.250841
+\end{verbatim}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -2680,7 +2814,7 @@ distribution of shares and graphical analysis with Tableau.
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\FunctionTok{write.csv}\NormalTok{(d.share.clust, }\AttributeTok{file=}\StringTok{"influence\_factors\_with\_CA.csv"}\NormalTok{)}
+\FunctionTok{write.csv}\NormalTok{(d.share.clust, }\AttributeTok{file=}\StringTok{"../Data/4\_Model\_output/influence\_factors\_with\_CA.csv"}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
@@ -2713,7 +2847,7 @@ data}\label{loading-and-normalizing-data}}
 \begin{Shaded}
 \begin{Highlighting}[]
 \CommentTok{\# Loading data}
-\NormalTok{d.cant.share }\OtherTok{\textless{}{-}} \FunctionTok{read.csv}\NormalTok{(}\StringTok{"../Data/Cleaned/inf\_fac\_cant\_share.csv"}\NormalTok{)}
+\NormalTok{d.cant.share }\OtherTok{\textless{}{-}} \FunctionTok{read.csv}\NormalTok{(}\StringTok{"../Data/3\_Output/inf\_fac\_cant\_share.csv"}\NormalTok{)}
 \CommentTok{\# print(colnames(d.cant.share))}
 
 \CommentTok{\# select columns to normalize}
@@ -3150,7 +3284,7 @@ distribution of shares and graphical analysis with Tableau.
 \NormalTok{d.cant.share.clust}\SpecialCharTok{$}\NormalTok{k\_cluster}\OtherTok{\textless{}{-}}\FunctionTok{as.factor}\NormalTok{(d.cant.share.clust}\SpecialCharTok{$}\NormalTok{k\_cluster)}
 \NormalTok{d.cant.share.clust}\SpecialCharTok{$}\NormalTok{aggl\_cluster}\OtherTok{\textless{}{-}}\FunctionTok{as.factor}\NormalTok{(d.cant.share.clust}\SpecialCharTok{$}\NormalTok{aggl\_cluster)}
 
-\FunctionTok{write.csv}\NormalTok{(d.cant.share.clust, }\AttributeTok{file=}\StringTok{"cant\_influence\_factors\_with\_CA.csv"}\NormalTok{)}
+\FunctionTok{write.csv}\NormalTok{(d.cant.share.clust, }\AttributeTok{file=}\StringTok{"../Data/4\_Model\_output/cant\_influence\_factors\_with\_CA.csv"}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
