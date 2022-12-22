@@ -1,8 +1,8 @@
 ---
-title: Linear model and cluster analysis of Influence factors and Public Transport
+title: Appendix 2 - Linear model and cluster analysis of Influence factors and Public Transport
   subscriptions
 author: "Gabriel Peier"
-date: '2022-12-02'
+date: '2022-12-22'
 output:
   pdf_document:
     number_sections: TRUE
@@ -346,12 +346,11 @@ d.norm.count.test <- d.norm.count[-indexes, ]
 This analysis starts with the first target variable, the GA. The share as well as the count will be calculated in the following chapter using two methods, the Generalized Linear Model with family Binomial and the Linear Model.
 
 ### Generalized Linear model (GLM) with family "Binomial" (GA)
-With a linear model, no probability distributions can be predicted, as values above 1 and below 0 are possible, resulting in meaningless values concerning the share. Therefore, a logistic approach comes into play, which strictly forecasts values between 0 and 1. Although I do not have values for individuals with regard to the share and thus do not model a binary target variable, a *multinomial logit model approach is described for aggregated data using group variable, which is in my case the municipality (Morais et al., 2016).*
-*Quasibinomial glm fulfills the criteria here:*
+With a linear model, no probability distributions can be predicted, as values above 1 and below 0 are possible, resulting in meaningless values concerning the share. Therefore, a logistic approach comes into play, which strictly forecasts values between 0 and 1. Although I do not have values for individuals with regard to the share and thus do not model a binary target variable, a generalized linear model with family binomial as adequate, as binomial data are per definition strictly between 0 and 1.
 
 #### Binomial vs. quasibinomial\newline
 
-There are several options when choosing the option "family" in the GLM. By default, "binomial" is used for a binomial model. In cases where the dispersion is too large or too small (over- and underdispersion), a "quasibinomial" model can be used, which has an additional dispersion parameter. This helps to ensure that significances can be detected. *According to the literature, the model is used when ...*
+There are several options when choosing the option "family" in the GLM. By default, "binomial" is used for a binomial model. In cases where the dispersion is too large or too small (over- and underdispersion), a "quasibinomial" model can be used, which has an additional dispersion parameter. This helps to ensure that significances can be detected.
 For these reasons, a quasibinomial model is also used here. The disadvantage here is that no stepwise procedure for paremeter elimination can be applied, as this is not permitted by the definition of the model.
 
 #### GLM model runs (GA)\newline
@@ -1292,7 +1291,7 @@ write.csv(inf_factors, file="../Data/4_Model_output/inf_factors_estimates.csv",
 
 ```
 
-All estimates can be plottes against each other to recognize similarities between GA, HTA and FNT:
+All estimates can be plotted against each other to recognize similarities between GA, HTA and FNT:
 ```{r 2.32_model_estimates_comparison, warning=FALSE, message=FALSE}
 
 
@@ -1321,7 +1320,7 @@ ggpairs(data.frame(d.share[,c("GA_share", "HTA_share", "FNT_share")]),
   ggtitle("Comparison of SHARE VALUES for GA, HTA and FNT") 
 ```
 Similar correlation values can be found here as well. It seems that the proportions for GA and HTA behave very similarly. In municipalities with a high proportion of GA travelcards, half-fare cards are often also represented more frequently. 
-On the other hand, it is the other way round with regard to the fare network tickets. The greater the proportion of GA or half-fare cards, the smaller the proportion of group season tickets tends to be. *literature ?*
+On the other hand, it is the other way round with regard to the fare network tickets. The greater the proportion of GA or half-fare cards, the smaller the proportion of group season tickets tends to be.
 
 ## Parameter selection for Cluster Analysis
 
@@ -1343,9 +1342,9 @@ cl.an.input <- d.norm.share[,c("language", rownames(inf_factors)
 \newpage
 # CLUSTER ANALYSIS
 
-*The best model of the different approaches will result in the highest accuracy and a corresponding list of parameters which are relevant and should be focussed on in the cluster analysis. Many, diverse communities can make it difficult to find easily separable clusters. Therefore, the first step of the cluster analysis is the reduction of the data to the cantonal level. For this purpose, a separate table must be created with a similar procedure as described in chapter 5.2.2, with the shares calculated on this new level of aggregation. Different options of cluster methods will be integrated in the analysis. I will use an agglomerative clustering model to start, which does not need a pre-defined number of clusters (Ward, 1963). This is an advantage, especially because it is hard to estimate in advance what number of groups will be useful at the end. Alternative models would be a k-means clustering (partitioning method) with a given number of clusters (MacQueen, 1967), a Generalized Mixture Model (GMM) which uses statistical models and is not based simply on a distance measure (Rasmussen, 1999), or even a density-based clustering like DBSCAN which assigns points to clusters based on densities in the data, returning also outliers (Ester et al., 1996).*
-
 The primary aim of cluster analysis is to identify spatial distribution patterns of certain characteristics with regard to relevant influencing factors. This requires the integration of the shares that were also used in the modelling. Particularly in cluster analysis, it is also important to carry out a normalization so that all variables have the same influence. Therefore, the normalized "share" table is used for the cluster analysis.
+
+In this work, different approaches of cluster analysis are tried: On the one hand an agglomerative clustering model was used to start, which fits best an explorative approach to gain first insights (Ward, 1963). Further models were a k-means clustering (partitioning method) with a given number of clusters (MacQueen, 1967), a Generalized Mixture Model (GMM) which uses statistical models and is not based simply on a distance measure (Rasmussen, 1999),  and the density-based clustering DBSCAN which assigns points to clusters based on densities in the data, returning also outliers (Ester et al., 1996). 
 
 
 ## Cluster analysis on the level of the municipality
