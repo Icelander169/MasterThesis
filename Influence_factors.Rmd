@@ -1,6 +1,6 @@
 ---
-title: Appendix 2 - Linear model and cluster analysis of Influence factors and Public Transport
-  subscriptions
+title: Appendix B - Generalized Linear Model and Cluster Analysis of possible influence factors of Public Transport
+  subscriptions in Switzerland
 author: "Gabriel Peier"
 date: '2022-12-22'
 output:
@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = TRUE, message=FALSE, cache=TRUE)
 
 # INTRODUCTION
 
-In this script, the methodical part of the Linear Model and the Cluster Analysis is described and executed.
+In this script, the methodical part of the Generalized Linear Model and the Cluster Analysis is described and executed.
 
 ## Packages
 For this analysis, several packages for the coding were needed. To make the use and reproducability easier, I list them here at the beginning of the paper. I did use the following packages:
